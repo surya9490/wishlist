@@ -1,0 +1,34 @@
+.wishlist .wishlist-icon {
+  background:transparent;
+  border:none;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  cursor:pointer;
+  font-family:inherit;
+}
+
+.wishlist [wishlisted] svg path {
+  fill:red;
+}
+
+.wishlist-toaster {
+  position: fixed;
+  left: auto;
+  bottom: 30px;
+  background:white;
+  width: 250px;
+  padding: 10px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  border-radius: 8px;
+  transform: translate(-100%);
+  z-index: 9999;
+  transition: transform 0.3s ease-in-out;
+}
+
+.wishlist-content {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  justify-content: center;
+  align-items: center;
+}

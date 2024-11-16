@@ -20,7 +20,6 @@ export async function loader({ request }) {
   return json({ wishlist,message: "Wishlisted products found" });
 }
 
-
 export async function action({ request }) {
   const method = request.method;
   let data = await request.formData();
@@ -45,3 +44,5 @@ export async function action({ request }) {
     return response;
   }
 }
+
+
