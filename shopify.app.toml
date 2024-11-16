@@ -1,0 +1,33 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "1cc2fd4f5f2cb3a796fab6f2f6631e86"
+name = "wishlist"
+handle = "wishlist-610"
+application_url = "https://introduction-happiness-management-working.trycloudflare.com"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "codeinspire-wishlist.myshopify.com"
+include_config_on_deploy = true
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_products"
+
+[auth]
+redirect_urls = [
+  "https://introduction-happiness-management-working.trycloudflare.com/auth/callback",
+  "https://introduction-happiness-management-working.trycloudflare.com/auth/shopify/callback",
+  "https://introduction-happiness-management-working.trycloudflare.com/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2024-10"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+[pos]
+embedded = false
