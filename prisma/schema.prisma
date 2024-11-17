@@ -41,6 +41,7 @@ model Wishlist {
   id               Int      @id @default(autoincrement())
   customerId       String?
   productVariantId String?
+  productHandle    String?
   shop             String?
   createdAt        DateTime @default(now())
 }
