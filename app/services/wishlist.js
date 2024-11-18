@@ -1,5 +1,7 @@
 import { json } from "@remix-run/node";
 import prisma from "../db.server";
+import { authenticate } from "../shopify.server";
+
 
 // Create a wishlist entry for a customer
 export async function createWishlist({ customerId, productVariantId, shop, productHandle }) {
@@ -13,14 +15,20 @@ export async function createWishlist({ customerId, productVariantId, shop, produ
       },
     });
 
-    return json({
-      message: 'Product added to wishlist',
-      method: 'POST',
-      wishlist, // Corrected typo 'wishtlist' to 'wishlist'
-    });
+    
+
+    return {
+      message: "Product added to wishlist",
+      method: "add",
+      wishlist,
+    };
   } catch (error) {
-    console.error('Error adding product to wishlist:', error);
-    return json({ message: 'Failed to add product to wishlist', error: error.message }, { status: 500 });
+    console.error("Error adding product to wishlist:", error);
+    return {
+      message: "Failed to add product to wishlist",
+      error: error.message,
+      status: 500,
+    };
   }
 }
 
@@ -36,21 +44,28 @@ export async function deleteWishlist({ customerId, productVariantId, shop, produ
       },
     });
 
-    return json({
-      message: 'Product removed from wishlist',
-      method: 'DELETE',
+    return {
+      message: "Product removed from wishlist",
+      method: "remove",
       result,
-    });
+    };
   } catch (error) {
-    console.error('Error removing product from wishlist:', error);
-    return json({ message: 'Failed to remove product from wishlist', error: error.message }, { status: 500 });
+    console.error("Error removing product from wishlist:", error);
+    return {
+      message: "Failed to remove product from wishlist",
+      error: error.message,
+      status: 500,
+    };
   }
 }
 
 // Retrieve wishlist for a customer
 export async function getCustomerWishlistedProducts({ customerId, shop }) {
   if (!customerId || !shop) {
-    return json({ message: 'Missing customer or shop data' }, { status: 400 });
+    return {
+      message: "Missing customer or shop data",
+      status: 400,
+    };
   }
 
   try {
@@ -61,60 +76,82 @@ export async function getCustomerWishlistedProducts({ customerId, shop }) {
       },
     });
 
-    return json({ data: wishlist, message: 'Wishlist fetched successfully' });
+    return {
+      data: wishlist,
+      message: "Wishlist fetched successfully",
+      status: 200,
+      method: "get",
+    };
   } catch (error) {
-    console.error('Error fetching customer wishlist:', error);
-    return json({ message: 'Failed to fetch wishlist', error: error.message }, { status: 500 });
+    console.error("Error fetching customer wishlist:", error);
+    return {
+      message: "Failed to fetch wishlist",
+      error: error.message,
+      status: 500,
+    };
   }
 }
 
 // Bulk update wishlist (e.g., for guest users or syncing data)
-export async function bulkUpdate({ customerId, guestWisthlistData, shop }) {
-  if (typeof guestWisthlistData === 'string') {
+export async function bulkUpdate({ customerId, guestWishlistData, shop }) {
+  console.log("guestWishlistData", guestWishlistData,typeof guestWishlistData);
+  if (typeof guestWishlistData === "string") {
     try {
-      guestWisthlistData = JSON.parse(guestWisthlistData);
+      guestWishlistData = JSON.parse(guestWishlistData);
     } catch (error) {
-      return json({ message: 'Failed to parse guest wishlist data', error: error.message }, { status: 400 });
+      return {
+        message: "Failed to parse guest wishlist data",
+        error: error.message,
+        status: 400,
+      };
     }
   }
 
-  if (!Array.isArray(guestWisthlistData)) {
-    return json({ message: 'Invalid guest wishlist data, expected an array' }, { status: 400 });
+  if (!Array.isArray(guestWishlistData)) {
+    return {
+      message: "Invalid guest wishlist data, expected an array",
+      status: 400,
+    };
   }
 
   try {
-    // Fetch existing wishlist items for the customer and shop
     const existingItems = await prisma.wishlist.findMany({
       where: {
         customerId,
         shop,
-        productVariantId: { in: guestWisthlistData.map(item => item.productVariantId) },
+        productVariantId: {
+          in: guestWishlistData.map((item) => item.productVariantId),
+        },
       },
     });
 
-    const existingIds = new Set(existingItems.map(item => item.productVariantId));
-
-    // Separate new items that are not yet in the wishlist
-    const newItems = guestWisthlistData.filter(item => !existingIds.has(item.productVariantId));
-    const updateItems = newItems.map(item => ({
+    const existingIds = new Set(existingItems.map((item) => item.productVariantId));
+    const newItems = guestWishlistData.filter((item) => !existingIds.has(item.productVariantId));
+    const updateItems = newItems.map((item) => ({
       ...item,
       customerId,
     }));
 
-    // Bulk insert new items if there are any
     if (updateItems.length > 0) {
       const addedItems = await prisma.wishlist.createMany({
         data: updateItems,
       });
-      return json({
-        message: 'New items added to wishlist',
-        addedItems,
-      });
+      return {
+        message: "New items added to wishlist",
+        data:addedItems,
+      };
     }
 
-    return json({ message: 'No new items to add' });
+    return { message: "No new items to add" };
   } catch (error) {
-    console.error('Error during bulk update of wishlist:', error);
-    return json({ message: 'Unexpected server error', error: error.message }, { status: 500 });
+    console.error("Error during bulk update of wishlist:", error);
+    return {
+      message: "Unexpected server error",
+      error: error.message,
+      status: 500,
+    };
   }
 }
+
+
+

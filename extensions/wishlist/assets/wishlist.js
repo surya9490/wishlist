@@ -50,8 +50,8 @@ class LoggedInWishlist {
       const response = await fetch(`${this.appUrl}/api/wishlist?customer=${this.customerId}&shop=${this.shop}`);
       if (!response.ok) throw new Error("Failed to fetch wishlist data.");
 
-      const { data } = await response.json();
-      this.wishlistData = data || [];
+      const result = await response.json();
+      this.wishlistData = result.data || [];
       return this.wishlistData;
     } catch (error) {
       console.error("Error fetching wishlist:", error);
@@ -93,7 +93,7 @@ class LoggedInWishlist {
 
 class WishlistManager {
   constructor(config = {}) {
-    this.appUrl = 'https://chosen-scales-sim-dish.trycloudflare.com';
+    this.appUrl = 'https://codeinspire-wishlist.myshopify.com/apps/connect';
     this.customerId = window.wishlistData?.customerEmail || null;
     this.shop = window.wishlistData?.shop || null;
 
@@ -102,6 +102,7 @@ class WishlistManager {
 
     this.toasterConfig = config.toasterConfig || WishlistManager.defaultToasterConfig;
     this.selectors = config.selectors || WishlistManager.defaultSelectors;
+    this.timer = null;
   }
 
   static defaultSelectors = {
@@ -128,7 +129,7 @@ class WishlistManager {
     };
   }
 
-  handleWishListActionDebounce = this.debounce((productId, productHandle, isInWishlist)=> {
+  handleWishListActionDebounce = this.debounce((productId, productHandle, isInWishlist) => {
     this.handleWishlistAction(productId, productHandle, isInWishlist);
   })
 
@@ -145,20 +146,20 @@ class WishlistManager {
       debugger
       // Fetch logged-in user's wishlist
       const data = await this.loggedInWishlist?.fetchWishlist();
-  
+
       // Fetch guest wishlist from session storage
       const guestData = this.guestWishlist.fetchWishlist();
-  
+
       // If there's no guest data or no logged-in user, skip syncing
       if (!guestData.length || !this.customerId) {
         this.updateUI();
         return;
       }
-  
+
       // Merge guest data and logged-in data (keep logged-in data intact)
       this.wishlistData = [...data, ...guestData];
       this.updateUI();
-  
+
       // Filter guest data to exclude items already in the DB
       const newWishlistItems = guestData.filter((guestItem) => {
         return !data.some(
@@ -167,7 +168,7 @@ class WishlistManager {
             dbItem.shop === guestItem.shop
         );
       });
-  
+
       // If there are new items to sync, prepare bulk update
       if (newWishlistItems.length > 0) {
         const formData = new FormData();
@@ -175,16 +176,16 @@ class WishlistManager {
         formData.append("shop", this.shop);
         formData.append("data", JSON.stringify(newWishlistItems));
         formData.append("_action", "bulkCreate");
-  
+
         const response = await fetch(`${this.appUrl}/api/wishlist`, {
           method: "POST",
           body: formData,
         });
-  
+
         if (!response.ok) {
           throw new Error("Failed to bulk update wishlist");
         }
-  
+
         // Clear guest data after successful sync
         this.guestWishlist.clearWishlist();
         console.log("Guest wishlist synced successfully.");
@@ -195,7 +196,7 @@ class WishlistManager {
       this.handleToaster("error", "Failed to sync guest wishlist.");
     }
   }
-  
+
 
   initWishlistButtons() {
     document.querySelectorAll(this.selectors.wishlistIcon).forEach(button => {
@@ -226,10 +227,10 @@ class WishlistManager {
   showToaster(status, message) {
     const toaster = document.querySelector(this.selectors.toaster);
     if (!toaster) return;
-
+    clearTimeout(this.timer)
     document.querySelector(this.selectors.toasterMessage).textContent = message;
     toaster.style.transform = "translateX(0)";
-    setTimeout(() => {
+    this.timer = setTimeout(() => {
       toaster.style.transform = "translateX(-100%)";
     }, this.toasterConfig.timer);
   }
