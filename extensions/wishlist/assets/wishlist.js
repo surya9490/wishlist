@@ -93,7 +93,7 @@ class LoggedInWishlist {
 }
 
 class WishlistManager {
-  #appUrl = "https://rocks-an-florida-partners.trycloudflare.com";
+  #appUrl = "https://basin-tom-statistical-required.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   #guestWishlist = new GuestWishlist(this.#shop);
@@ -102,12 +102,21 @@ class WishlistManager {
     : null;
   #toasterConfig;
   #selectors;
+  #options;
   #timer;
+  #debounceTimer;
 
   constructor(config = {}) {
     this.#toasterConfig = config.toasterConfig || WishlistManager.defaultToasterConfig;
     this.#selectors = config.selectors || WishlistManager.defaultSelectors;
+    this.#options = { ...WishlistManager.options, ...config.options };
   }
+
+  static options = {
+    toaster: true,
+    guestWishList: true,
+    variantChange: true,
+  };
 
   static defaultSelectors = {
     toaster: "[wishlist-toaster]",
@@ -134,6 +143,7 @@ class WishlistManager {
   }
 
   #triggerEvent(action, product) {
+    console.log(action, product);
     const event = new CustomEvent("wishlistUpdated", {
       detail: { action, product },
     });
@@ -150,8 +160,10 @@ class WishlistManager {
         return;
       }
 
-      this.wishlistData = [...data, ...guestData];
+      this.wishlistData = this.#guestWishlist ? [...data, ...guestData] : [...data];
       this.#updateUI();
+
+      if (!this.#options?.guestWishList)  return;
 
       const newWishlistItems = guestData.filter((guestItem) => {
         return !data.some(
@@ -188,16 +200,30 @@ class WishlistManager {
 
   #initWishlistButtons() {
     document.querySelectorAll(this.#selectors.wishlistIcon).forEach((button) => {
-      button.addEventListener("click", async (event) => {
+      button.addEventListener("click", (event) => {
         event.preventDefault();
+        if (!this.#options.guestWishList) {
+          // Redirect to login if guest wishlist is disabled and user is not logged in
+          window.location.href = "/account/login";
+          return;
+        }
+
         const productId = button.getAttribute("data-product-id");
         const productHandle = button.getAttribute("data-product-handle");
         const isInWishlist = !!this.#getWishlistHandler()?.wishlistData?.some(
           (item) => item.productVariantId === productId
         );
-        this.#handleWishlistAction(productId, productHandle, isInWishlist);
+
+        this.#debounceWishlistAction(productId, productHandle, isInWishlist);
       });
     });
+  }
+
+  #debounceWishlistAction(productVariantId, productHandle, isInWishlist) {
+    clearTimeout(this.#debounceTimer);
+    this.#debounceTimer = setTimeout(() => {
+      this.#handleWishlistAction(productVariantId, productHandle, isInWishlist);
+    }, 300); // Debounce delay in milliseconds
   }
 
   async #handleWishlistAction(productVariantId, productHandle, isInWishlist) {
@@ -215,6 +241,7 @@ class WishlistManager {
   }
 
   #showToaster(status, message) {
+    if (!this.#options.toaster) return;
     const toaster = document.querySelector(this.#selectors.toaster);
     if (!toaster) return;
     clearTimeout(this.#timer);
@@ -231,21 +258,28 @@ class WishlistManager {
 
   #updateUI() {
     const wishlistData = this.#getWishlistHandler().wishlistData;
+    const useVariantId = this.#options.variantChange;
+    
     document.querySelectorAll(this.#selectors.wishlistIcon).forEach((button) => {
-      const productId = button.getAttribute("data-product-id");
-      const isInWishlist = wishlistData.some((item) => item.productVariantId === productId);
-      button.toggleAttribute("wishlisted", isInWishlist);
+      const productId = button.getAttribute(useVariantId ? "data-product-id" : "data-product-handle");
+      const isWishlisted = wishlistData.some((item) => 
+        useVariantId ? item.productVariantId === productId : item.productHandle === productId
+      );
+      button.toggleAttribute("wishlisted", isWishlisted);
     });
   }
+  
 
   #onVariantChange() {
+    if(!this.#options.variantChange) return;
     document.addEventListener("change", (event) => {
-      debugger
-      const section =  event.target.closest('section')
-      const form = section.querySelector('form[action*="/cart/add"]');
+      const section = event.target.closest("section");
+      const form = section.querySelector("form[action*='/cart/add']");
       if (!form) return;
 
-      const variant = event.target.matches(this.#selectors.variantChange) || section.querySelector(this.#selectors.variantChange);
+      const variant =
+        event.target.matches(this.#selectors.variantChange) ||
+        section.querySelector(this.#selectors.variantChange);
       if (!variant) return;
 
       const wishlistIcon = section.querySelector(this.#selectors.wishlistIcon);
@@ -254,13 +288,20 @@ class WishlistManager {
       if (wishlistIcon && variantId) wishlistIcon.setAttribute("data-product-id", variantId);
       else return;
       this.#updateUI();
-      this.#triggerEvent('wishlist:variantChange', { variantId, productHandle });
+      this.#triggerEvent("wishlist:variantChange", { variantId, productHandle });
     });
   }
 }
 
 // Initialize the WishlistManager
 document.addEventListener("DOMContentLoaded", () => {
-  const wishlistManager = new WishlistManager();
+  const config = {
+    options: {
+      toaster: false,
+      variantChange:true
+    },
+  };
+  const wishlistManager = new WishlistManager(config);
   wishlistManager.init();
 });
+
