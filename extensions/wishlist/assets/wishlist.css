@@ -32,3 +32,19 @@
   justify-content: center;
   align-items: center;
 }
+
+[wishlist-header-icon] {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+[wishlist-header-icon] svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+[wishlist-header-icon] svg path {
+stroke: white;
+stroke-width: 2px;
+}

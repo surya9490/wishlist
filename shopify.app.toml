@@ -3,7 +3,7 @@
 client_id = "1cc2fd4f5f2cb3a796fab6f2f6631e86"
 name = "wishlist"
 handle = "wishlist-610"
-application_url = "https://royal-path-forwarding-belfast.trycloudflare.com"
+application_url = "https://rocks-an-florida-partners.trycloudflare.com"
 embedded = true
 
 [build]
@@ -13,13 +13,13 @@ include_config_on_deploy = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "read_products"
 
 [auth]
 redirect_urls = [
-  "https://royal-path-forwarding-belfast.trycloudflare.com/auth/callback",
-  "https://royal-path-forwarding-belfast.trycloudflare.com/auth/shopify/callback",
-  "https://royal-path-forwarding-belfast.trycloudflare.com/api/auth/callback"
+  "https://rocks-an-florida-partners.trycloudflare.com/auth/callback",
+  "https://rocks-an-florida-partners.trycloudflare.com/auth/shopify/callback",
+  "https://rocks-an-florida-partners.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
