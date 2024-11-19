@@ -14,9 +14,6 @@ export async function createWishlist({ customerId, productVariantId, shop, produ
         shop,
       },
     });
-
-    
-
     return {
       message: "Product added to wishlist",
       method: "add",

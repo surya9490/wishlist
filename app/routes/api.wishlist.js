@@ -15,12 +15,8 @@ export async function loader({ request }) {
     const customerId = url.searchParams.get("customer");
     const shop = url.searchParams.get("shop");
 
-    const {storefront} = await authenticate.public.appProxy(request);
 
-    if (!storefront) {
-      return new Response();
-    }
-
+    
     if (!customerId || !shop) {
       return json({ message: "Missing customer or shop data" }, { status: 400 });
     }
@@ -63,7 +59,7 @@ export async function action({ request }) {
 
     switch (action) {
       case "add": {
-        if (!productVariantId || !productHandle) {
+        if (!productVariantId || !productHandle || !customerId || !shop) {
           return json({ message: "Missing product data for add action" }, { status: 400 });
         }
         const response = await createWishlist({ customerId, productVariantId, shop, productHandle });
@@ -71,7 +67,7 @@ export async function action({ request }) {
       }
 
       case "remove": {
-        if (!productVariantId || !productHandle) {
+        if (!productVariantId || !customerId || !shop) {
           return json({ message: "Missing product data for remove action" }, { status: 400 });
         }
         const response = await deleteWishlist({ customerId, productVariantId, shop, productHandle });
@@ -79,7 +75,7 @@ export async function action({ request }) {
       }
 
       case "bulkCreate": {
-        if (!guestWishlistData) {
+        if (!guestWishlistData || !customerId || !shop ) {
           return json({ message: "Missing data for bulk create action" }, { status: 400 });
         }
         const response = await bulkUpdate({ customerId, guestWishlistData, shop });
