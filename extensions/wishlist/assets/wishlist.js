@@ -68,7 +68,9 @@ class LoggedInWishlist {
   }
 
   async _sendWishlistUpdate(action, { productVariantId, productHandle = null }) {
+  
     try {
+      debugger
       const formData = new FormData();
       formData.append("customerId", this.customerId);
       formData.append("shop", this.shop);
@@ -93,7 +95,7 @@ class LoggedInWishlist {
 }
 
 class WishlistManager {
-  #appUrl = "https://basin-tom-statistical-required.trycloudflare.com";
+  #appUrl = "https://december-auction-minerals-pink.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   #guestWishlist = new GuestWishlist(this.#shop);
@@ -144,7 +146,7 @@ class WishlistManager {
 
   #triggerEvent(action, product) {
     console.log(action, product);
-    const event = new CustomEvent("wishlistUpdated", {
+    const event = new CustomEvent("wishlist:update", {
       detail: { action, product },
     });
     document.dispatchEvent(event);
@@ -297,7 +299,7 @@ class WishlistManager {
 document.addEventListener("DOMContentLoaded", () => {
   const config = {
     options: {
-      toaster: false,
+      toaster: true,
       variantChange:true
     },
   };

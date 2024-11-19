@@ -11,12 +11,11 @@ import {authenticate} from '../shopify.server';
 
 export async function loader({ request }) {
   try {
+
     const url = new URL(request.url);
     const customerId = url.searchParams.get("customer");
     const shop = url.searchParams.get("shop");
 
-
-    
     if (!customerId || !shop) {
       return json({ message: "Missing customer or shop data" }, { status: 400 });
     }
@@ -63,7 +62,7 @@ export async function action({ request }) {
           return json({ message: "Missing product data for add action" }, { status: 400 });
         }
         const response = await createWishlist({ customerId, productVariantId, shop, productHandle });
-        return json({ message: "Product added to wishlist", data: response });
+        return json({ ...response});
       }
 
       case "remove": {

@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import prisma from "../db.server";
-import { authenticate } from "../shopify.server";
+
 
 
 // Create a wishlist entry for a customer
@@ -91,7 +91,7 @@ export async function getCustomerWishlistedProducts({ customerId, shop }) {
 
 // Bulk update wishlist (e.g., for guest users or syncing data)
 export async function bulkUpdate({ customerId, guestWishlistData, shop }) {
-  console.log("guestWishlistData", guestWishlistData,typeof guestWishlistData);
+
   if (typeof guestWishlistData === "string") {
     try {
       guestWishlistData = JSON.parse(guestWishlistData);
@@ -135,7 +135,7 @@ export async function bulkUpdate({ customerId, guestWishlistData, shop }) {
       });
       return {
         message: "New items added to wishlist",
-        data:addedItems,
+        data: addedItems,
       };
     }
 
@@ -149,6 +149,88 @@ export async function bulkUpdate({ customerId, guestWishlistData, shop }) {
     };
   }
 }
+
+
+
+const fetchProduct = async (shop, productHandle) => {
+  // Fetch access token from the database
+  const accessTokenRecord = await prisma.session.findFirst({ where: { shop } });
+  if (!accessTokenRecord || !accessTokenRecord.accessToken) {
+    throw new Error("Access token not found for the shop.");
+  }
+  const accessToken = accessTokenRecord.accessToken;
+  console.log("Access Token:------------------", accessToken);
+
+  const query = `
+    query getProduct($handle: String!) {
+      product(handle: $handle) {
+        id
+        title
+        descriptionHtml
+        images(first: 5) {
+          edges {
+            node {
+              id
+              url
+            }
+          }
+        }
+        variants(first: 10) {
+          edges {
+            node {
+              id
+              title
+              price {
+                amount
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const variables = { handle: productHandle };
+
+  // Ensure the shop URL is correctly formatted with https://
+ const formattedShop = `https://${shop}`;
+ console.log(formattedShop,'-----------------------')
+  const graphqlUrl = `${formattedShop}/admin/api/2024-10/graphql.json`;
+
+  console.log("GraphQL URL:------------", graphqlUrl); // Log for debugging
+
+  let response;
+  try {
+    response = await fetch(graphqlUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Storefront-Access-Token": accessToken,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+  } catch (fetchError) {
+    throw new Error(`Network error while fetching product: ${fetchError.message}`);
+  }
+
+  // Check if the response is OK
+  if (!response.ok) {
+    throw new Error(`Error fetching product: ${response.statusText}`);
+  }
+
+  // Parse the response JSON
+  const data = await response.json();
+  if (!data.data || !data.data.product) {
+    throw new Error("Product not found in the shop.");
+  }
+
+  return data.data.product;
+};
+
+
+
+
+
 
 
 

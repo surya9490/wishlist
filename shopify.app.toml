@@ -3,7 +3,7 @@
 client_id = "1cc2fd4f5f2cb3a796fab6f2f6631e86"
 name = "wishlist"
 handle = "wishlist-610"
-application_url = "https://basin-tom-statistical-required.trycloudflare.com"
+application_url = "https://december-auction-minerals-pink.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_products"
 
 [auth]
 redirect_urls = [
-  "https://basin-tom-statistical-required.trycloudflare.com/auth/callback",
-  "https://basin-tom-statistical-required.trycloudflare.com/auth/shopify/callback",
-  "https://basin-tom-statistical-required.trycloudflare.com/api/auth/callback"
+  "https://december-auction-minerals-pink.trycloudflare.com/auth/callback",
+  "https://december-auction-minerals-pink.trycloudflare.com/auth/shopify/callback",
+  "https://december-auction-minerals-pink.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
