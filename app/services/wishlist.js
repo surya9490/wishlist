@@ -53,7 +53,7 @@ export async function createWishlist({ customerId, productVariantId, shop, produ
     });
 
     const result = await fetchProductVariant(shop, productVariantId);
-    return { message: "Product added to wishlist", method: "add", variantData: result, wishlist };
+    return { message: "Product added to wishlist", method: "add", variantData: result, data:wishlist };
   } catch (error) {
     return handleError("Error adding product to wishlist", error);
   }

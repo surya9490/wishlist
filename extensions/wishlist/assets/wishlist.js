@@ -71,6 +71,7 @@ class LoggedInWishlist {
   }
 
   async _sendWishlistUpdate(action, { productVariantId, productHandle = null }) {
+    debugger
     try {
       const formData = new FormData();
       formData.append("customerId", this.customerId);
@@ -87,16 +88,17 @@ class LoggedInWishlist {
 
       if (!response.ok) throw new Error(`Failed to ${action} item in wishlist.`);
 
+      const result = await response.json();
+      const { data, variantData } = result;
       if (action === "add") {
-        this.wishlistData.push({ productVariantId, productHandle, shop: this.shop });
+        this.wishlistData.push({ ...data });
       } else {
         this.wishlistData = this.wishlistData.filter(
           item => item.productVariantId !== productVariantId
         );
       }
-
       const message = action === "add" ? "Product added to wishlist." : "Product removed from wishlist.";
-      return { success: true, message };
+      return { success: true, message, variantData };
     } catch (error) {
       console.error(`Error ${action}ing item in wishlist:`, error);
       return { success: false, message: `Error ${action}ing item in wishlist.` };
@@ -105,13 +107,15 @@ class LoggedInWishlist {
 }
 
 class WishlistUI {
-  constructor() {
+  constructor(wishlistManager) {
     this.wishlistData = [];
+    this.wishlistManager = wishlistManager
     this.selectors = {
       dialog: "[wishlist-dialog]",
       close: "[wishlist-close]",
       icon: "[wishlist-header-icon]",
       search: "[wishlist-dialog] [type='search']",
+      remove: "[remove-variant]",
     };
     this.dialog = document.querySelector(this.selectors.dialog);
     this.init();
@@ -122,16 +126,29 @@ class WishlistUI {
     const closeButton = this.dialog.querySelector(this.selectors.close);
     const search = this.dialog.querySelector(this.selectors.search);
 
-
     popupTriggerIcon?.addEventListener("click", () => this.showDialog());
     closeButton?.addEventListener("click", () => this.closeDialog());
-    search?.addEventListener("input", (event) => this.searchWishlist(event.target.value));
+
+    // Apply throttling to the searchWishlist function
+    const throttledSearch = this.#throttle((event) => {
+      this.searchWishlist(event.target.value);
+    }, 1000);
+
+    search?.addEventListener("input", throttledSearch);
     this.dialog.addEventListener("close", () => this.closeDialog());
   }
+
 
   setVariantData(data) {
     this.variantData = data;
     this.renderProductCards(data); // Initial render with all products
+  }
+
+  updateProductCardsOnAction(data, variantid) {
+    debugger
+    this.updateProductCards(data);
+    const id = variantid.split('/').pop();
+    this.wishlistManager.removeItemActionFromUI(id)
   }
 
   showDialog() {
@@ -150,53 +167,127 @@ class WishlistUI {
       return;
     }
 
-    productContainer.innerHTML = data
-      .map((item) => {
-        const imageUrl =
-          item?.image?.url ||
-          item?.product?.featuredMedia?.preview?.image?.url ||
-          "placeholder.jpg";
-        const title = item?.product?.title || "Product Name";
+    productContainer.innerHTML = ""; // Clear existing cards
+    data.forEach((item) => {
+      const card = this.createProductCard(item);
+      productContainer.appendChild(card);
+      card.querySelector(this.selectors.remove).addEventListener("click", () => this.removeItem(card.getAttribute("data-variant-id")));
+    });
+  }
 
-        return `
-          <div class="product-card">
-          <a href="/products/${item?.product?.handle}">
-            <div class="product-image">
-              <img src="${imageUrl}" alt="${title}" />
-            </div>
-            </a>
-            <div class="product-details">
-              <h3 title="${title}">${title}</h3>
-              <p>${item.title}</p>
-            </div>
-          </div>
-        `;
-      })
-      .join("");
+  removeItem(variantId) {
+    const filteredData = this.variantData.filter((item) => item.id !== variantId);
+    this.variantData = [...filteredData]
+    this.updateProductCardsOnAction(filteredData, variantId);
+  }
+
+  createProductCard(item) {
+    const imageUrl =
+      item?.image?.url ||
+      item?.product?.featuredMedia?.preview?.image?.url ||
+      "placeholder.jpg";
+    const title = item?.product?.title || "Product Name";
+
+    const card = document.createElement("div");
+    card.className = "product-card";
+    card.setAttribute("data-variant-id", item.id);
+
+    card.innerHTML = `
+      <span remove-variant>X</span>
+      <a href="/products/${item?.product?.handle}">
+        <div class="product-image">
+          <img src="${imageUrl}" alt="${title}" />
+        </div>
+      </a>
+      <div class="product-details">
+        <h3 title="${title}">${title}</h3>
+        <p>${item.title}</p>
+      </div>
+    `;
+
+    return card;
   }
 
   searchWishlist(query) {
+    debugger
     const lowerCaseQuery = query.trim().toLowerCase();
 
     // Filter wishlist data by title
-    const filteredData = this.variantData.filter((item) => {
-      const title = item?.title || "";
+    const filteredData = query === '' ? this.variantData : this.variantData.filter((item) => {
+      const title = item?.product.title || "";
       return title.toLowerCase().includes(lowerCaseQuery);
+    })
+
+    // Update DOM selectively
+    this.updateProductCards(filteredData);
+  }
+
+  updateProductCards(filteredData) {
+    const productContainer = this.dialog.querySelector(".product-container");
+
+    if (!productContainer) {
+      console.error("Product container not found.");
+      return;
+    }
+
+    const existingCards = Array.from(productContainer.children);
+
+    // Create a map for efficient lookup
+    const filteredMap = new Map(
+      filteredData.map((item) => [item.id, item])
+    );
+
+    // Update or remove existing cards
+    existingCards.forEach((card) => {
+      const variantId = card.getAttribute("data-variant-id");
+
+      if (filteredMap.has(variantId)) {
+        filteredMap.delete(variantId); // Mark as processed
+      } else {
+        // Remove card if not in filtered data
+        card.remove();
+      }
     });
 
-    // Re-render product cards with filtered data
-    this.renderProductCards(filteredData);
+    // Add new cards for remaining filtered items
+    filteredMap.forEach((item) => {
+      const newCard = this.createProductCard(item);
+      productContainer.appendChild(newCard);
+      newCard.querySelector(this.selectors.remove).addEventListener("click", () => this.removeItem(newCard.getAttribute("data-variant-id")));
+    });
+  }
+
+  #throttle(func, limit) {
+    let lastFunc;
+    let lastRan;
+    return function (...args) {
+      const context = this;
+      if (!lastRan) {
+        func.apply(context, args);
+        lastRan = Date.now();
+      } else {
+        clearTimeout(lastFunc);
+        lastFunc = setTimeout(() => {
+          if (Date.now() - lastRan >= limit) {
+            func.apply(context, args);
+            lastRan = Date.now();
+          }
+        }, limit - (Date.now() - lastRan));
+      }
+    };
   }
 }
 
 
 
+
+
 class WishlistManager {
-  #appUrl = "https://provide-justify-lp-brand.trycloudflare.com";
+  #appUrl = "https://cohen-demonstrates-guests-rolled.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   #guestWishlist = new GuestWishlist(this.#shop);
-  #wishlistUI = new WishlistUI();
+  #wishlistUI = new WishlistUI(this);
   #loggedInWishlist = this.#customerId
     ? new LoggedInWishlist(this.#appUrl, this.#customerId, this.#shop)
     : null;
@@ -333,15 +424,33 @@ class WishlistManager {
     const handler = this.#getWishlistHandler();
     const action = isInWishlist ? "remove" : "add";
 
-    const result = await (action === "add"
-      ? handler.addItem(productVariantId, productHandle)
-      : handler.removeItem(productVariantId));
+    const result = await handler[action === "add" ? "addItem" : "removeItem"](
+      productVariantId,
+      productHandle
+    );
 
-    const wishlistAction = action === "add" ? "wishlist:added" : "wishlist:removed";
-    this.#triggerEvent(wishlistAction, { productVariantId, productHandle });
-    this.#showToaster(action, result.message);
+    if (result.success) {
+      this.#updateWishlistUI(action, productVariantId, result.variantData);
+      const wishlistAction = action === "add" ? "wishlist:added" : "wishlist:removed";
+      this.#triggerEvent(wishlistAction, { productVariantId, productHandle });
+      this.#showToaster(action, result.message);
+    }
     this.#updateUI();
   }
+
+  #updateWishlistUI(action, productVariantId, variantData) {
+    debugger
+    if (action === "add") {
+      this.#wishlistUI.updateProductCardsOnAction([...this.#wishlistUI.variantData, variantData]);
+    } else {
+      const updatedVariantData = this.#wishlistUI.variantData.filter((item) => {
+        const variantId = item.id.split("/").pop(); // Extract numeric ID from GraphQL ID
+        return variantId !== productVariantId.toString();
+      });
+      this.#wishlistUI.updateProductCards(updatedVariantData);
+    }
+  }
+
 
   #showToaster(status, message) {
     if (!this.#options.toaster) return;
@@ -370,6 +479,10 @@ class WishlistManager {
       );
       button.toggleAttribute("wishlisted", isWishlisted);
     });
+  }
+
+  removeItemActionFromUI(productVariantId, productHandle) {
+    this.#getWishlistHandler()._sendWishlistUpdate("remove", { productVariantId });
   }
 
 
