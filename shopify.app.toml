@@ -3,7 +3,7 @@
 client_id = "1cc2fd4f5f2cb3a796fab6f2f6631e86"
 name = "wishlist"
 handle = "wishlist-610"
-application_url = "https://even-barcelona-sullivan-honors.trycloudflare.com"
+application_url = "https://mart-shot-lesser-timer.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_products,read_inventory"
 
 [auth]
 redirect_urls = [
-  "https://even-barcelona-sullivan-honors.trycloudflare.com/auth/callback",
-  "https://even-barcelona-sullivan-honors.trycloudflare.com/auth/shopify/callback",
-  "https://even-barcelona-sullivan-honors.trycloudflare.com/api/auth/callback"
+  "https://mart-shot-lesser-timer.trycloudflare.com/auth/callback",
+  "https://mart-shot-lesser-timer.trycloudflare.com/auth/shopify/callback",
+  "https://mart-shot-lesser-timer.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]

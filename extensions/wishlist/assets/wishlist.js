@@ -130,11 +130,11 @@ class WishlistUI {
     closeButton?.addEventListener("click", () => this.closeDialog());
 
     // Apply throttling to the searchWishlist function
-    const throttledSearch = this.#throttle((event) => {
+    const debouncedSearch = this.wishlistManager.debounce((event) => {
       this.searchWishlist(event.target.value);
-    }, 1000);
+    }, 300);
 
-    search?.addEventListener("input", throttledSearch);
+    search?.addEventListener("input", debouncedSearch);
     this.dialog.addEventListener("close", () => this.closeDialog());
   }
 
@@ -145,7 +145,6 @@ class WishlistUI {
   }
 
   updateProductCardsOnAction(data, action) {
-    debugger
     this.updateProductCards(data, action);
 
   }
@@ -175,12 +174,13 @@ class WishlistUI {
   }
 
   removeItem(variantId) {
+    debugger
     const filteredData = this.variantData.filter((item) => item.id !== variantId);
     this.variantData = [...filteredData]
     let action = 'remove'
     this.updateProductCardsOnAction(filteredData, action);
     const id = variantId.split('/').pop();
-    this.wishlistManager.removeItemActionFromUI(id)
+    this.wishlistManager.onActionRemoveItemFromPopup(id,'',action)
   }
 
   createProductCard(item) {
@@ -234,7 +234,7 @@ class WishlistUI {
     const existingCards = Array.from(productContainer.children);
 
     // Create a map for efficient lookup
-    const filteredMap = new Map(
+    const filteredMap = filteredData.length > 0 ? new Map() : new Map(
       filteredData.map((item) => [item.id, item])
     );
 
@@ -259,34 +259,12 @@ class WishlistUI {
       newCard.querySelector(this.selectors.remove).addEventListener("click", () => this.removeItem(newCard.getAttribute("data-variant-id")));
     });
   }
-
-  #throttle(func, limit) {
-    let lastFunc;
-    let lastRan;
-    return function (...args) {
-      const context = this;
-      if (!lastRan) {
-        func.apply(context, args);
-        lastRan = Date.now();
-      } else {
-        clearTimeout(lastFunc);
-        lastFunc = setTimeout(() => {
-          if (Date.now() - lastRan >= limit) {
-            func.apply(context, args);
-            lastRan = Date.now();
-          }
-        }, limit - (Date.now() - lastRan));
-      }
-    };
-  }
 }
 
 
-
-
-
 class WishlistManager {
-  #appUrl = "https://even-barcelona-sullivan-honors.trycloudflare.com";
+  // Private class properties
+  #appUrl = "https://mart-shot-lesser-timer.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   #guestWishlist = new GuestWishlist(this.#shop);
@@ -298,14 +276,15 @@ class WishlistManager {
   #selectors;
   #options;
   #timer;
-  #debounceTimer;
 
+  // Constructor with default configurations
   constructor(config = {}) {
     this.#toasterConfig = config.toasterConfig || WishlistManager.defaultToasterConfig;
     this.#selectors = config.selectors || WishlistManager.defaultSelectors;
     this.#options = { ...WishlistManager.options, ...config.options };
   }
 
+  // Static properties for reusable defaults
   static options = {
     toaster: true,
     guestWishList: true,
@@ -328,14 +307,16 @@ class WishlistManager {
     },
   };
 
-  async init() {
-    if (this.#loggedInWishlist) await this.#syncGuestDataWithDB();
-    else this.#updateUI(this.#wishlistUI.setVariantData(this.#guestWishlist.fetchWishlist()));
-
-    this.#initWishlistButtons();
-    this.#onVariantChange();
+  // Utility function for debouncing
+  debounce(fn, delay) {
+    let timer;
+    return function (...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delay);
+    };
   }
 
+  //dispatch custom event
   #triggerEvent(action, product) {
     console.log(action, product);
     const event = new CustomEvent("wishlist:update", {
@@ -344,117 +325,142 @@ class WishlistManager {
     document.dispatchEvent(event);
   }
 
+  // Initialize the WishlistManager
+  async init() {
+    if (this.#loggedInWishlist) {
+      await this.#syncGuestDataWithDB();
+    } else {
+      this.#updateUI(this.#wishlistUI.setVariantData(this.#guestWishlist.fetchWishlist()));
+    }
+    this.#initWishlistButtons();
+    this.#handleVariantChange();
+  }
+
+  // Sync guest wishlist with the logged-in user's wishlist
   async #syncGuestDataWithDB() {
     try {
       const data = await this.#loggedInWishlist?.fetchWishlist();
-      const { wishlistData, variantData } = data;
-
       const guestData = this.#guestWishlist.fetchWishlist();
 
       if (!guestData.length || !this.#customerId) {
-        this.#wishlistUI.setVariantData(variantData)
+        this.#wishlistUI.setVariantData(data.variantData);
         this.#updateUI();
         return;
       }
 
-      this.wishlistData = this.#guestWishlist ? [...wishlistData, ...guestData] : [...wishlistData];
-      this.#updateUI();
-
-      if (!this.#options?.guestWishList) return;
-
-      const newWishlistItems = guestData.filter((guestItem) => {
-        return !data.some(
-          (dbItem) =>
-            dbItem.productVariantId === guestItem.productVariantId &&
-            dbItem.shop === guestItem.shop
-        );
-      });
+      const newWishlistItems = guestData.filter(
+        (guestItem) =>
+          !data.wishlistData.some(
+            (dbItem) =>
+              dbItem.productVariantId === guestItem.productVariantId &&
+              dbItem.shop === guestItem.shop
+          )
+      );
 
       if (newWishlistItems.length > 0) {
-        const formData = new FormData();
-        formData.append("customerId", this.#customerId);
-        formData.append("shop", this.#shop);
-        formData.append("data", JSON.stringify(newWishlistItems));
-        formData.append("_action", "bulkCreate");
-
-        const response = await fetch(`${this.#appUrl}/api/wishlist`, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to bulk update wishlist");
-        }
-
+        await this.#bulkUpdateWishlist(newWishlistItems);
         this.#guestWishlist.clearWishlist();
         this.#updateUI();
       }
     } catch (error) {
-      console.error("Error syncing guest wishlist data:", error);
-      this.#showToaster("error", "Failed to sync guest wishlist.");
+      this.handleError(error);
+      this.#showToaster("error", this.#toasterConfig.messages.error);
     }
   }
 
+  async #bulkUpdateWishlist(newItems) {
+    const formData = new FormData();
+    formData.append("customerId", this.#customerId);
+    formData.append("shop", this.#shop);
+    formData.append("data", JSON.stringify(newItems));
+    formData.append("_action", "bulkCreate");
+
+    const response = await fetch(`${this.#appUrl}/api/wishlist`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to bulk update wishlist");
+    }
+  }
+
+  // Initialize wishlist buttons
   #initWishlistButtons() {
     document.querySelectorAll(this.#selectors.wishlistIcon).forEach((button) => {
       button.addEventListener("click", (event) => {
         event.preventDefault();
         if (!this.#options.guestWishList) {
-          // Redirect to login if guest wishlist is disabled and user is not logged in
-          window.location.href = "/account/login";
+          this.#redirectToLogin();
           return;
         }
-
         const productId = button.getAttribute("data-product-id");
         const productHandle = button.getAttribute("data-product-handle");
-        const isInWishlist = !!this.#getWishlistHandler()?.wishlistData?.some(
-          (item) => item.productVariantId === productId
-        );
+        const isInWishlist = this.#isProductInWishlist(productId);
 
         this.#debounceWishlistAction(productId, productHandle, isInWishlist);
       });
     });
   }
 
-  #debounceWishlistAction(productVariantId, productHandle, isInWishlist) {
-    clearTimeout(this.#debounceTimer);
-    this.#debounceTimer = setTimeout(() => {
-      this.#handleWishlistAction(productVariantId, productHandle, isInWishlist);
-    }, 300); // Debounce delay in milliseconds
+  // Check if a product is already in the wishlist
+  #isProductInWishlist(productId) {
+    return this.#getWishlistHandler()?.wishlistData?.some(
+      (item) => item.productVariantId === productId
+    );
   }
 
+  // Debounce wishlist action for better performance
+  #debounceWishlistAction = this.debounce((productVariantId, productHandle, isInWishlist) => {
+    this.#handleWishlistAction(productVariantId, productHandle, isInWishlist);
+  }, 300);
+
+  // Handle adding or removing items from the wishlist
   async #handleWishlistAction(productVariantId, productHandle, isInWishlist) {
     const handler = this.#getWishlistHandler();
     const action = isInWishlist ? "remove" : "add";
 
-    const result = await handler[action === "add" ? "addItem" : "removeItem"](
-      productVariantId,
-      productHandle
-    );
+    try {
+      const result = await handler[action === "add" ? "addItem" : "removeItem"](
+        productVariantId,
+        productHandle
+      );
 
-    if (result.success) {
-      this.#updateWishlistUI(action, productVariantId, result.variantData);
-      const wishlistAction = action === "add" ? "wishlist:added" : "wishlist:removed";
-      this.#triggerEvent(wishlistAction, { productVariantId, productHandle });
-      this.#showToaster(action, result.message);
+      if (result.success) {
+        this.#updateWishlistUI(action, productVariantId, result.variantData);
+        this.#triggerEvent(`wishlist:${action}ed`, { productVariantId, productHandle });
+        this.#showToaster(action, result.message);
+      }
+    } catch (error) {
+      this.handleError(error);
+    } finally {
+      this.#updateUI();
     }
-    this.#updateUI();
   }
 
+  onActionRemoveItemFromPopup(productVariantId, productHandle,boolean) {
+    this.#handleWishlistAction(productVariantId, productHandle, boolean);
+  }
+
+
+  // Update wishlist UI based on action
   #updateWishlistUI(action, productVariantId, variantData) {
-    debugger
     if (action === "add") {
-      this.#wishlistUI.updateProductCardsOnAction([...this.#wishlistUI.variantData, variantData], '', productVariantId);
+      this.#wishlistUI.updateProductCardsOnAction(
+        [...this.#wishlistUI.variantData, variantData],
+        "",
+        productVariantId
+      );
     } else {
-      const updatedVariantData = this.#wishlistUI.variantData.filter((item) => {
-        const variantId = item.id.split("/").pop(); // Extract numeric ID from GraphQL ID
+      const updatedData = this.#wishlistUI.variantData.filter((item) => {
+        const variantId = item.id?.split("/")?.pop() || productVariantId
         return variantId !== productVariantId.toString();
       });
-      this.#wishlistUI.updateProductCards(updatedVariantData);
+      this.#wishlistUI.updateProductCards(updatedData);
     }
   }
 
-
+  // Show toaster notifications
   #showToaster(status, message) {
     if (!this.#options.toaster) return;
     const toaster = document.querySelector(this.#selectors.toaster);
@@ -467,12 +473,31 @@ class WishlistManager {
     }, this.#toasterConfig.timer);
   }
 
+  // Handle variant changes in the wishlist
+  #handleVariantChange() {
+    if (!this.#options.variantChange) return;
+    document.addEventListener("change", (event) => {
+      const section = event.target.closest("section");
+      const form = section?.querySelector("form[action*='/cart/add']");
+      if (!form) return;
+
+      const variantId = form.querySelector('[name="id"]').value;
+      const wishlistIcon = section.querySelector(this.#selectors.wishlistIcon);
+      if (wishlistIcon && variantId) wishlistIcon.setAttribute("data-product-id", variantId);
+
+      this.#updateUI();
+      this.#triggerEvent("wishlist:variantChange", { variantId });
+    });
+  }
+
+  // Get the current wishlist handler (logged-in or guest)
   #getWishlistHandler() {
     return this.#loggedInWishlist || this.#guestWishlist;
   }
 
+  // Update UI state for all wishlist icons
   #updateUI() {
-    const wishlistData = this.#getWishlistHandler().wishlistData;
+    const wishlistData = this.#getWishlistHandler()?.wishlistData;
     const useVariantId = this.#options.variantChange;
 
     document.querySelectorAll(this.#selectors.wishlistIcon).forEach((button) => {
@@ -484,42 +509,24 @@ class WishlistManager {
     });
   }
 
-  removeItemActionFromUI(productVariantId, productHandle) {
-    this.#getWishlistHandler()._sendWishlistUpdate("remove", { productVariantId });
+  // Redirect to login page
+  #redirectToLogin() {
+    window.location.href = "/account/login";
   }
 
-
-  #onVariantChange() {
-    debugger
-    if (!this.#options.variantChange) return;
-    document.addEventListener("change", (event) => {
-      const section = event.target.closest("section");
-      const form = section?.querySelector("form[action*='/cart/add']");
-      if (!form) return;
-
-      const variant =
-        event.target.matches(this.#selectors.variantChange) ||
-        section.querySelector(this.#selectors.variantChange);
-      if (!variant) return;
-
-      const wishlistIcon = section.querySelector(this.#selectors.wishlistIcon);
-      const productHandle = wishlistIcon.getAttribute("data-product-handle");
-      const variantId = form.querySelector('[name="id"]').value;
-      if (wishlistIcon && variantId) wishlistIcon.setAttribute("data-product-id", variantId);
-      else return;
-      this.#updateUI();
-      this.#triggerEvent("wishlist:variantChange", { variantId, productHandle });
-    });
+  // General error handling
+  handleError(error) {
+    console.error("API Error: ", error);
   }
 }
 
-// Initialize the WishlistManager
+// Initialize WishlistManager
 document.addEventListener("DOMContentLoaded", () => {
   const config = {
     options: {
       toaster: true,
       variantChange: true,
-      guestWishList: true
+      guestWishList: true,
     },
   };
   const wishlistManager = new WishlistManager(config);
