@@ -23,14 +23,17 @@
     </div>
   </div>
   <div>
-    <dialog wishlist-modal>
-      <div class="wishlist-modal">
-        <div class="wishlist-close"></div>
-        <div>
+    <dialog wishlist-dialog>
+      <div class="wishlist-dialog">
+        <div class="wishlist-header">
           <h2>My Wishlist</h2>
+          <button wishlist-close>X</button>
+        </div>
+        <div class="wishlist-body">
           <div>
             <input type="search" placeholder="searchItems">
           </div>
+          <div class="product-container"></div>
         </div>
       </div>
     </dialog>

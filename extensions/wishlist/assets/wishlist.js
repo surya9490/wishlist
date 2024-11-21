@@ -5,11 +5,11 @@ class GuestWishlist {
   }
 
   fetchWishlist() {
-    return JSON.parse(sessionStorage.getItem('wishlistGuest')) || [];
+    return JSON.parse(sessionStorage.getItem("wishlistGuest")) || [];
   }
 
   saveWishlist() {
-    sessionStorage.setItem('wishlistGuest', JSON.stringify(this.wishlistData));
+    sessionStorage.setItem("wishlistGuest", JSON.stringify(this.wishlistData));
   }
 
   addItem(productVariantId, productHandle) {
@@ -32,7 +32,7 @@ class GuestWishlist {
   }
 
   clearWishlist() {
-    sessionStorage.removeItem('wishlistGuest');
+    sessionStorage.removeItem("wishlistGuest");
     this.wishlistData = [];
   }
 }
@@ -47,12 +47,15 @@ class LoggedInWishlist {
 
   async fetchWishlist() {
     try {
-      const response = await fetch(`${this.appUrl}/api/wishlist?customer=${this.customerId}&shop=${this.shop}`);
+      const response = await fetch(
+        `${this.appUrl}/api/wishlist?customer=${this.customerId}&shop=${this.shop}`
+      );
       if (!response.ok) throw new Error("Failed to fetch wishlist data.");
 
       const result = await response.json();
       this.wishlistData = result.data || [];
-      return this.wishlistData;
+      this.variantData = result.variantData || [];
+      return { wishlistData: this.wishlistData, variantData: this.variantData };
     } catch (error) {
       console.error("Error fetching wishlist:", error);
       return [];
@@ -68,9 +71,7 @@ class LoggedInWishlist {
   }
 
   async _sendWishlistUpdate(action, { productVariantId, productHandle = null }) {
-  
     try {
-      debugger
       const formData = new FormData();
       formData.append("customerId", this.customerId);
       formData.append("shop", this.shop);
@@ -79,11 +80,20 @@ class LoggedInWishlist {
 
       if (productHandle) formData.append("productHandle", productHandle);
 
-      const response = await fetch(`${this.appUrl}/api/wishlist`, { method: "POST", body: formData });
+      const response = await fetch(`${this.appUrl}/api/wishlist`, {
+        method: "POST",
+        body: formData,
+      });
+
       if (!response.ok) throw new Error(`Failed to ${action} item in wishlist.`);
 
-      if (action === "add") this.wishlistData.push({ productVariantId, productHandle, shop: this.shop });
-      else this.wishlistData = this.wishlistData.filter(item => item.productVariantId !== productVariantId);
+      if (action === "add") {
+        this.wishlistData.push({ productVariantId, productHandle, shop: this.shop });
+      } else {
+        this.wishlistData = this.wishlistData.filter(
+          item => item.productVariantId !== productVariantId
+        );
+      }
 
       const message = action === "add" ? "Product added to wishlist." : "Product removed from wishlist.";
       return { success: true, message };
@@ -94,11 +104,99 @@ class LoggedInWishlist {
   }
 }
 
+class WishlistUI {
+  constructor() {
+    this.wishlistData = [];
+    this.selectors = {
+      dialog: "[wishlist-dialog]",
+      close: "[wishlist-close]",
+      icon: "[wishlist-header-icon]",
+      search: "[wishlist-dialog] [type='search']",
+    };
+    this.dialog = document.querySelector(this.selectors.dialog);
+    this.init();
+  }
+
+  init() {
+    const popupTriggerIcon = document.querySelector(this.selectors.icon);
+    const closeButton = this.dialog.querySelector(this.selectors.close);
+    const search = this.dialog.querySelector(this.selectors.search);
+
+
+    popupTriggerIcon?.addEventListener("click", () => this.showDialog());
+    closeButton?.addEventListener("click", () => this.closeDialog());
+    search?.addEventListener("input", (event) => this.searchWishlist(event.target.value));
+    this.dialog.addEventListener("close", () => this.closeDialog());
+  }
+
+  setVariantData(data) {
+    this.variantData = data;
+    this.renderProductCards(data); // Initial render with all products
+  }
+
+  showDialog() {
+    if (this.dialog) this.dialog.showModal();
+  }
+
+  closeDialog() {
+    this.dialog.close();
+  }
+
+  renderProductCards(data) {
+    const productContainer = this.dialog.querySelector(".product-container");
+
+    if (!productContainer) {
+      console.error("Product container not found.");
+      return;
+    }
+
+    productContainer.innerHTML = data
+      .map((item) => {
+        const imageUrl =
+          item?.image?.url ||
+          item?.product?.featuredMedia?.preview?.image?.url ||
+          "placeholder.jpg";
+        const title = item?.product?.title || "Product Name";
+
+        return `
+          <div class="product-card">
+          <a href="/products/${item?.product?.handle}">
+            <div class="product-image">
+              <img src="${imageUrl}" alt="${title}" />
+            </div>
+            </a>
+            <div class="product-details">
+              <h3 title="${title}">${title}</h3>
+              <p>${item.title}</p>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  searchWishlist(query) {
+    const lowerCaseQuery = query.trim().toLowerCase();
+
+    // Filter wishlist data by title
+    const filteredData = this.variantData.filter((item) => {
+      const title = item?.title || "";
+      return title.toLowerCase().includes(lowerCaseQuery);
+    });
+
+    // Re-render product cards with filtered data
+    this.renderProductCards(filteredData);
+  }
+}
+
+
+
 class WishlistManager {
-  #appUrl = "https://december-auction-minerals-pink.trycloudflare.com";
+  #appUrl = "https://provide-justify-lp-brand.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   #guestWishlist = new GuestWishlist(this.#shop);
+  #wishlistUI = new WishlistUI();
   #loggedInWishlist = this.#customerId
     ? new LoggedInWishlist(this.#appUrl, this.#customerId, this.#shop)
     : null;
@@ -138,7 +236,7 @@ class WishlistManager {
 
   async init() {
     if (this.#loggedInWishlist) await this.#syncGuestDataWithDB();
-    else this.#updateUI(this.#guestWishlist.fetchWishlist());
+    else this.#updateUI(this.#wishlistUI.setVariantData(this.#guestWishlist.fetchWishlist()));
 
     this.#initWishlistButtons();
     this.#onVariantChange();
@@ -155,17 +253,20 @@ class WishlistManager {
   async #syncGuestDataWithDB() {
     try {
       const data = await this.#loggedInWishlist?.fetchWishlist();
+      const { wishlistData, variantData } = data;
+
       const guestData = this.#guestWishlist.fetchWishlist();
 
       if (!guestData.length || !this.#customerId) {
+        this.#wishlistUI.setVariantData(variantData)
         this.#updateUI();
         return;
       }
 
-      this.wishlistData = this.#guestWishlist ? [...data, ...guestData] : [...data];
+      this.wishlistData = this.#guestWishlist ? [...wishlistData, ...guestData] : [...wishlistData];
       this.#updateUI();
 
-      if (!this.#options?.guestWishList)  return;
+      if (!this.#options?.guestWishList) return;
 
       const newWishlistItems = guestData.filter((guestItem) => {
         return !data.some(
@@ -261,19 +362,19 @@ class WishlistManager {
   #updateUI() {
     const wishlistData = this.#getWishlistHandler().wishlistData;
     const useVariantId = this.#options.variantChange;
-    
+
     document.querySelectorAll(this.#selectors.wishlistIcon).forEach((button) => {
       const productId = button.getAttribute(useVariantId ? "data-product-id" : "data-product-handle");
-      const isWishlisted = wishlistData.some((item) => 
+      const isWishlisted = wishlistData.some((item) =>
         useVariantId ? item.productVariantId === productId : item.productHandle === productId
       );
       button.toggleAttribute("wishlisted", isWishlisted);
     });
   }
-  
+
 
   #onVariantChange() {
-    if(!this.#options.variantChange) return;
+    if (!this.#options.variantChange) return;
     document.addEventListener("change", (event) => {
       const section = event.target.closest("section");
       const form = section.querySelector("form[action*='/cart/add']");
@@ -300,7 +401,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const config = {
     options: {
       toaster: true,
-      variantChange:true
+      variantChange: true,
+      guestWishList: true
     },
   };
   const wishlistManager = new WishlistManager(config);

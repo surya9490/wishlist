@@ -3,11 +3,9 @@ import {
   bulkUpdate,
   createWishlist,
   deleteWishlist,
-  fetchProductData,
   getCustomerWishlistedProducts,
 } from "../services/wishlist";
-import { cors } from "remix-utils/cors";
-import {authenticate} from '../shopify.server';
+
 
 export async function loader({ request }) {
   try {
