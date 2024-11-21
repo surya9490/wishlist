@@ -44,4 +44,5 @@ model Wishlist {
   productHandle    String?
   shop             String?
   createdAt        DateTime @default(now())
+  productTitle     String?
 }

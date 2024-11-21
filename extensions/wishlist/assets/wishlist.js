@@ -144,11 +144,10 @@ class WishlistUI {
     this.renderProductCards(data); // Initial render with all products
   }
 
-  updateProductCardsOnAction(data, variantid) {
+  updateProductCardsOnAction(data, action) {
     debugger
-    this.updateProductCards(data);
-    const id = variantid.split('/').pop();
-    this.wishlistManager.removeItemActionFromUI(id)
+    this.updateProductCards(data, action);
+
   }
 
   showDialog() {
@@ -178,7 +177,10 @@ class WishlistUI {
   removeItem(variantId) {
     const filteredData = this.variantData.filter((item) => item.id !== variantId);
     this.variantData = [...filteredData]
-    this.updateProductCardsOnAction(filteredData, variantId);
+    let action = 'remove'
+    this.updateProductCardsOnAction(filteredData, action);
+    const id = variantId.split('/').pop();
+    this.wishlistManager.removeItemActionFromUI(id)
   }
 
   createProductCard(item) {
@@ -209,7 +211,6 @@ class WishlistUI {
   }
 
   searchWishlist(query) {
-    debugger
     const lowerCaseQuery = query.trim().toLowerCase();
 
     // Filter wishlist data by title
@@ -222,7 +223,7 @@ class WishlistUI {
     this.updateProductCards(filteredData);
   }
 
-  updateProductCards(filteredData) {
+  updateProductCards(filteredData, action) {
     const productContainer = this.dialog.querySelector(".product-container");
 
     if (!productContainer) {
@@ -248,6 +249,8 @@ class WishlistUI {
         card.remove();
       }
     });
+
+    if (action === 'remove' && this.dialog?.querySelector(this.selectors.search)?.value !== '') return;
 
     // Add new cards for remaining filtered items
     filteredMap.forEach((item) => {
@@ -283,7 +286,7 @@ class WishlistUI {
 
 
 class WishlistManager {
-  #appUrl = "https://cohen-demonstrates-guests-rolled.trycloudflare.com";
+  #appUrl = "https://even-barcelona-sullivan-honors.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   #guestWishlist = new GuestWishlist(this.#shop);
@@ -441,7 +444,7 @@ class WishlistManager {
   #updateWishlistUI(action, productVariantId, variantData) {
     debugger
     if (action === "add") {
-      this.#wishlistUI.updateProductCardsOnAction([...this.#wishlistUI.variantData, variantData]);
+      this.#wishlistUI.updateProductCardsOnAction([...this.#wishlistUI.variantData, variantData], '', productVariantId);
     } else {
       const updatedVariantData = this.#wishlistUI.variantData.filter((item) => {
         const variantId = item.id.split("/").pop(); // Extract numeric ID from GraphQL ID
@@ -487,10 +490,11 @@ class WishlistManager {
 
 
   #onVariantChange() {
+    debugger
     if (!this.#options.variantChange) return;
     document.addEventListener("change", (event) => {
       const section = event.target.closest("section");
-      const form = section.querySelector("form[action*='/cart/add']");
+      const form = section?.querySelector("form[action*='/cart/add']");
       if (!form) return;
 
       const variant =

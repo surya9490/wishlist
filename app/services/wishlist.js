@@ -48,11 +48,13 @@ const shopifyGraphQL = async (shop, query, variables) => {
 // Create a wishlist entry for a customer
 export async function createWishlist({ customerId, productVariantId, shop, productHandle }) {
   try {
+    const result = await fetchProductVariant(shop, productVariantId);
+    const productTitle = result?.product?.title || "Unknown Product";
     const wishlist = await prisma.wishlist.create({
-      data: { customerId, productVariantId, productHandle, shop },
+      data: { customerId, productVariantId, productHandle, shop, productTitle },
     });
 
-    const result = await fetchProductVariant(shop, productVariantId);
+
     return { message: "Product added to wishlist", method: "add", variantData: result, data:wishlist };
   } catch (error) {
     return handleError("Error adding product to wishlist", error);
@@ -192,3 +194,6 @@ const fetchMultipleProductVariants = async (shop, variantIds) => {
   const variables = { ids: variantIds.map((id) => encodeGId("ProductVariant", id)) };
   return shopifyGraphQL(shop, query, variables).then((data) => data?.nodes);
 };
+
+
+
