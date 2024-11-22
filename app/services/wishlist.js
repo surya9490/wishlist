@@ -55,7 +55,7 @@ export async function createWishlist({ customerId, productVariantId, shop, produ
     });
 
 
-    return { message: "Product added to wishlist", method: "add", variantData: result, data:wishlist };
+    return { message: "Product added to wishlist", method: "add", variantData: result, data: wishlist };
   } catch (error) {
     return handleError("Error adding product to wishlist", error);
   }
@@ -79,10 +79,10 @@ export async function getCustomerWishlistedProducts({ customerId, shop }) {
   if (!customerId || !shop) return { message: "Missing customer or shop data", status: 400 };
 
   try {
-    const wishlist = await prisma.wishlist.findMany({ where: { customerId, shop } });
-    const variantData = await fetchMultipleProductVariants(shop, wishlist.map((item) => item.productVariantId));
+    const wishlisted = await prisma.wishlist.findMany({ where: { customerId, shop } });
+    const variantData = await fetchMultipleProductVariants(shop, wishlisted.map((item) => item.productVariantId));
 
-    return { data: wishlist, message: "Wishlist fetched successfully", status: 200, variantData, method: "get" };
+    return { wishlisted, variantData, message: "Wishlist fetched successfully", status: 200, };
   } catch (error) {
     return handleError("Error fetching customer wishlist", error);
   }
@@ -118,7 +118,7 @@ export async function bulkUpdate({ customerId, guestWishlistData, shop }) {
     if (updateItems.length > 0) {
       const addedItems = await prisma.wishlist.createMany({ data: updateItems });
       const variantData = await fetchMultipleProductVariants(shop, updateItems.map((item) => item.productVariantId));
-      return { message: "New items added to wishlist", data: addedItems, variantData };
+      return { message: "New items added to wishlist", wishlisted: addedItems, variantData };
     }
 
     return { message: "No new items to add" };
@@ -127,9 +127,18 @@ export async function bulkUpdate({ customerId, guestWishlistData, shop }) {
   }
 }
 
+export async function fetchProductData(shop, productVariantId) {
+  try {
+    const result = await fetchProductVariant(shop, productVariantId);
+    return { variantData:[result], message: "Product data fetched successfully", status: 200 };
+  } catch (error) {
+
+  }
+}
+
 // Fetch a single product variant
 const fetchProductVariant = async (shop, variantId) => {
-  const query =`
+  const query = `
     query getProductVariant($id: ID!) {
       productVariant(id: $id) {
         title

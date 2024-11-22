@@ -3,6 +3,7 @@ import {
   bulkUpdate,
   createWishlist,
   deleteWishlist,
+  fetchProductData,
   getCustomerWishlistedProducts,
 } from "../services/wishlist";
 
@@ -41,17 +42,14 @@ export async function action({ request }) {
       customerId,
       productVariantId,
       shop,
-      productHandle, data:guestWishlistData,
-      _action: action,
+      productHandle,
+      variantData,
+      action,
     } = data;
 
 
     if (!action) {
       return json({ message: "Missing action", method }, { status: 400 });
-    }
-
-    if (!customerId || !shop) {
-      return json({ message: "Missing customer or shop data", method }, { status: 400 });
     }
 
     switch (action) {
@@ -60,7 +58,7 @@ export async function action({ request }) {
           return json({ message: "Missing product data for add action" }, { status: 400 });
         }
         const response = await createWishlist({ customerId, productVariantId, shop, productHandle });
-        return json({ ...response});
+        return json({ ...response });
       }
 
       case "remove": {
@@ -68,15 +66,22 @@ export async function action({ request }) {
           return json({ message: "Missing product data for remove action" }, { status: 400 });
         }
         const response = await deleteWishlist({ customerId, productVariantId, shop, productHandle });
-        return json({ message: "Product removed from wishlist", data: response });
+        return json({ ...response });
       }
 
       case "bulkCreate": {
-        if (!guestWishlistData || !customerId || !shop ) {
+        if (!variantData || !customerId || !shop) {
           return json({ message: "Missing data for bulk create action" }, { status: 400 });
         }
-        const response = await bulkUpdate({ customerId, guestWishlistData, shop });
-        return json({ message: "Wishlist updated for guest user", data: response });
+        const response = await bulkUpdate({ customerId, variantData, shop });
+        return json({ ...response });
+      }
+      case "fetch": {
+        if (!productVariantId || !shop) {
+          return json({ message: "Missing data" }, { status: 400 });
+        }
+        const response = await fetchProductData(shop, productVariantId);
+        return json({ ...response });
       }
 
       default:
