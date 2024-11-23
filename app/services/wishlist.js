@@ -180,6 +180,9 @@ export async function getSearchResults(shop, query, customerId) {
       select: {
         productVariantId: true, // Select only the required fields for efficiency
         productTitle: true,
+        customerId: true,
+        shop: true,
+        productHandle: true
       },
     });
 
@@ -195,7 +198,7 @@ export async function getSearchResults(shop, query, customerId) {
     // Return results based on the fetched data
     if (variantData.length > 0) {
       console.log(variantData,'-----------------')
-      return { message: "Matching items found", variantData: variantData };
+      return { message: "Matching items found", variantData: variantData,wishlisted: matchingItems };
     } else {
       return { message: "No matching items found", data: matchingItems };
     }

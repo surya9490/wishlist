@@ -59,6 +59,7 @@ const pubsub = new PubSub();
 class WishlistUI {
   constructor(wishlistManager, url, shop, customerId) {
     this.wishlistManager = wishlistManager;
+    this.wishlistData = { wishlisted: [], variantData: [] };
     this.shop = shop;
     this.customerId = customerId;
     this.appUrl = url;
@@ -135,10 +136,10 @@ class WishlistUI {
       .map(
         (item) => `
       <div class="product-card" data-variant-id="${item.id}">
-        <span class="remove-icon" wishlist-remove>X</span>
+        <span class="remove-icon" remove-variant>X</span>
         <a href="/products/${item?.product?.handle}">
           <div class="product-image">
-            <img src="${item?.image ||item?.product?.featuredMedia?.preview?.image?.url || 'placeholder.jpg'}" alt="${item?.product?.title || 'Product Name'}" />
+            <img src="${item?.image || item?.product?.featuredMedia?.preview?.image?.url || 'placeholder.jpg'}" alt="${item?.product?.title || 'Product Name'}" />
           </div>
         </a>
         <div class="product-details">
@@ -151,8 +152,9 @@ class WishlistUI {
 
     this.productContainer.querySelectorAll(this.selectors.remove)?.forEach((btn) => {
       btn.addEventListener("click", (e) => {
-        const variantId = e.target.closest(".product-card")?.getAttribute("data-variant-id");
-        this.wishlistManager.handleWishlistAction({ action: "remove", productVariantId: variantId });
+        let variantId = e.target.closest(".product-card")?.getAttribute("data-variant-id");
+        variantId = variantId.split('/').pop();
+        e.target.closest(".product-card")?.remove();
         pubsub.publish("wishlist:action", { action: "remove", productVariantId: variantId });
       });
     });
@@ -167,7 +169,6 @@ class WishlistApi {
     this.shop = shop;
     this.customerId = customerId;
     this.wishlistData = wishlistData;
-    this.initialized = false; // Track initialization state
 
   }
 
@@ -305,7 +306,7 @@ class WishlistApi {
 }
 
 class WishlistManager {
-  #appUrl = "https://realty-techrepublic-insurance-marilyn.trycloudflare.com";
+  #appUrl = "https://dot-threatened-much-tournaments.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   wishlistData = { wishlisted: [], variantData: [] };
@@ -382,7 +383,7 @@ class WishlistManager {
   handleUpdatedData({ data, action }) {
     this.wishlistData = data;
     this.#updateUI();
-    this.#showToaster(action);
+    if(action === 'add' || action === 'remove') this.#showToaster(action);
     this.#handleVariantChange()
   }
 
