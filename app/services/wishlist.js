@@ -55,7 +55,7 @@ export async function createWishlist({ customerId, productVariantId, shop, produ
     });
 
 
-    return { message: "Product added to wishlist", method: "add", variantData: result, data: wishlist };
+    return { message: "Product added to wishlist", method: "add", variantData: [result], wishlisted: [wishlist] };
   } catch (error) {
     return handleError("Error adding product to wishlist", error);
   }
@@ -89,50 +89,99 @@ export async function getCustomerWishlistedProducts({ customerId, shop }) {
 }
 
 // Bulk update wishlist (e.g., for guest users or syncing data)
-export async function bulkUpdate({ customerId, guestWishlistData, shop }) {
-  if (typeof guestWishlistData === "string") {
+export async function bulkUpdate({ customerId, variantData, shop }) {
+  console.log("variantData before processing:", variantData);
+
+  if (typeof variantData === "string") {
+    console.log("Parsing variantData string:", variantData);
     try {
-      guestWishlistData = JSON.parse(guestWishlistData);
+      variantData = JSON.parse(variantData);
     } catch (error) {
       return handleError("Failed to parse guest wishlist data", error, 400);
     }
   }
 
-  if (!Array.isArray(guestWishlistData)) {
-    return { message: "Invalid guest wishlist data, expected an array", status: 400 };
+  if (!Array.isArray(variantData)) {
+    return { message: "Invalid guest wishlist data. Expected an array.", status: 400 };
   }
 
   try {
+    // Find existing wishlist items
     const existingItems = await prisma.wishlist.findMany({
       where: {
         customerId,
         shop,
-        productVariantId: { in: guestWishlistData.map((item) => item.productVariantId) },
+        productVariantId: { in: variantData },
       },
     });
 
+    // Get IDs of existing items
     const existingIds = new Set(existingItems.map((item) => item.productVariantId));
-    const newItems = guestWishlistData.filter((item) => !existingIds.has(item.productVariantId));
-    const updateItems = newItems.map((item) => ({ ...item, customerId }));
+
+    // Filter new items that are not already in the wishlist
+    const newItems = variantData.filter((id) => !existingIds.has(id)); // Compare directly with IDs
+
+    // Prepare new items for creation
+    const updateItems = newItems.map((productVariantId) => ({
+      productVariantId,
+      customerId,
+      shop,
+    }));
 
     if (updateItems.length > 0) {
+      // Add new items to the wishlist
       const addedItems = await prisma.wishlist.createMany({ data: updateItems });
-      const variantData = await fetchMultipleProductVariants(shop, updateItems.map((item) => item.productVariantId));
-      return { message: "New items added to wishlist", wishlisted: addedItems, variantData };
+
+      // Fetch product variant data for the newly added items
+      const variantDataDetails = await fetchMultipleProductVariants(
+        shop,
+        updateItems.map((item) => item.productVariantId)
+      );
+
+      return {
+        message: "New items added to wishlist",
+        wishlisted: addedItems,
+        variantData: variantDataDetails,
+      };
     }
 
     return { message: "No new items to add" };
   } catch (error) {
     return handleError("Error during bulk update of wishlist", error);
   }
+
 }
 
 export async function fetchProductData(shop, productVariantId) {
   try {
     const result = await fetchProductVariant(shop, productVariantId);
-    return { variantData:[result], message: "Product data fetched successfully", status: 200 };
+    return { variantData: [result], message: "Product data fetched successfully", status: 200 };
   } catch (error) {
 
+  }
+}
+
+export async function getSearchResults(shop, query, customerId) {
+  try {
+    const matchingItems = await prisma.wishlist.findMany({
+      where: {
+        shop,
+        customerId,
+        productTitle: {
+          contains: query.toLowerCase(),
+        },
+      },
+    });
+
+    const variantData = await fetchMultipleProductVariants(shop, matchingItems.map((item) => item.productVariantId));
+    console.log(variantData, '----------------------')
+    if (variantData.length === 0) {
+      return { message: "Matching items found", data: matchingItems };
+    } else {
+      return { message: "No matching items found" };
+    }
+  } catch (error) {
+    return handleError("Error fetching wishlist items", error);
   }
 }
 

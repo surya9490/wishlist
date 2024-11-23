@@ -24,6 +24,129 @@ class PubSub {
 
 const pubsub = new PubSub();
 
+class WishlistUI {
+  constructor(wishlistManager, url, shop, customerId) {
+    this.wishlistData = { wishlisted: [], variantData: [] };
+    this.wishlistManager = wishlistManager
+    this.shop = shop;
+    this.customerId = customerId;
+    this.appUrl = url
+    this.selectors = {
+      dialog: "[wishlist-dialog]",
+      close: "[wishlist-close]",
+      icon: "[wishlist-header-icon]",
+      remove: "[remove-variant]",
+      productContainer: ".product-container",
+      search: "[type='search']",
+    };
+    this.dialog = document.querySelector(this.selectors.dialog);
+    this.init();
+  }
+
+  init() {
+    const popupTriggerIcon = document.querySelector(this.selectors.icon);
+    const closeButton = this.dialog?.querySelector(this.selectors.close);
+    const search = this.dialog.querySelector(this.selectors.search);
+
+    popupTriggerIcon?.addEventListener("click", () => this.showDialog());
+    closeButton?.addEventListener("click", () => this.closeDialog());
+    this.dialog?.addEventListener("close", () => this.closeDialog());
+
+    search?.addEventListener("input", (event) => this.handleSeach(event.target.value));
+
+  }
+
+  async handleSeach(query) {
+    const formData = new FormData();
+    formData.append("action", "search");
+    formData.append("shop", this.shop);
+    formData.append("query", query);
+    formData.append("customerId", this.customerId);
+    const response = await fetch(`${this.appUrl}/api/wishlist`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!response.ok) throw new Error("Failed to fetch wishlist data.");
+    const data = await response.json();
+    this.setVariantData(data);
+  }
+
+  setVariantData(data) {
+    this.wishlistData.variantData = data;
+    this.renderProductCards(data); // Render all products initially
+  }
+
+  showDialog() {
+    if (this.dialog) this.dialog.showModal();
+  }
+
+  closeDialog() {
+    this.dialog?.close();
+  }
+
+  renderProductCards(data) {
+    const productContainer = this.getProductContainer();
+
+    if (!productContainer) {
+      console.error("Product container not found.");
+      return;
+    }
+
+    productContainer.innerHTML = ""; // Clear existing content
+    const cards = data.map((item) => this.createProductCard(item));
+    productContainer.append(...cards); // Append all cards at once
+  }
+
+  getProductContainer() {
+    // Get or create the product container
+    let productContainer = this.dialog?.querySelector(this.selectors.productContainer);
+    if (!productContainer) {
+      productContainer = document.createElement("div");
+      productContainer.className = "product-container";
+      this.dialog.appendChild(productContainer);
+    }
+    return productContainer;
+  }
+
+  createProductCard(item) {
+    const imageUrl =
+      item?.image?.url ||
+      item?.product?.featuredMedia?.preview?.image?.url ||
+      "placeholder.jpg";
+    const title = item?.product?.title || "Product Name";
+
+    const card = document.createElement("div");
+    card.className = "product-card";
+    card.setAttribute("data-variant-id", item.id);
+
+    card.innerHTML = `
+      <span ${this.selectors.remove.substring(1)}>X</span>
+      <a href="/products/${item?.product?.handle}">
+        <div class="product-image">
+          <img src="${imageUrl}" alt="${title}" />
+        </div>
+      </a>
+      <div class="product-details">
+        <h3 title="${title}">${title}</h3>
+        <p>${item.title}</p>
+      </div>
+    `;
+
+    // Attach remove functionality
+    card.querySelector(this.selectors.remove).addEventListener("click", () =>
+      this.removeProduct(item.id)
+    );
+
+    return card;
+  }
+
+  removeProduct(variantId) {
+    this.wishlistData.variantData = this.wishlistData.variantData.filter(
+      (item) => item.id !== variantId
+    );
+    this.renderProductCards(this.wishlistData.variantData);
+  }
+}
 
 
 
@@ -35,10 +158,10 @@ class WishlistApi {
     this.customerId = customerId;
     this.wishlistData = wishlistData;
     this.initialized = false; // Track initialization state
+
   }
 
   async init() {
-    debugger
     await this.loadWishListData();
     pubsub.subscribe('wishlist:action', (data) => this.handleWishlistAction(data))
   }
@@ -47,7 +170,7 @@ class WishlistApi {
     try {
       const data = await this.getWishlistedData();
       const syncedData = await this.syncUserDataWithGuest(data);
-      pubsub.publish("wishlist:updated", { syncedData, action: 'sync' })
+      this.wishlistManager.handleUpdatedData({ data: syncedData, action: "load" });
       this.initialized = true; // Mark as initialized
     } catch (error) {
       this.handleError(error);
@@ -82,9 +205,10 @@ class WishlistApi {
   }
 
   async syncUserDataWithGuest(data) {
+    debugger
+    if (!this.customerId) return data;
     const guestUserData = this.getGuestData();
-    if (guestUserData?.wishlisted === undefined || guestUserData?.wishlisted?.length === 0) return data;
-
+    if (guestUserData.wishlisted.length === 0) return data;
     const newWishlistItems = guestUserData.wishlisted.filter(
       (guestItem) =>
         !data.wishlisted.some(
@@ -93,18 +217,24 @@ class WishlistApi {
     );
 
     if (newWishlistItems?.length === 0) return data;
-
     const variantData = newWishlistItems.map((item) => item.productVariantId);
-    const response = await this.handleRequest({ action: "add", variantData });
+    if (!Array.isArray(variantData) || variantData.length === 0) {
+      throw new Error("variantData must be a non-empty array");
+    }
+    const response = await this.handleRequest({ action: "bulkCreate", variantData: JSON.stringify(variantData) });
     data.variantData = [...data.variantData, ...response.variantData];
     data.wishlisted = [...data.wishlisted, ...newWishlistItems];
-
+    this.setGuestData({ wishlisted: [], variantData: [] });
     return data;
   }
 
   async handleWishlistAction({ action, productVariantId, ...params }) {
     debugger
     try {
+      if (!this.customerId && action === "remove") {
+        this.updateWishlistData(action, productVariantId, params.productHandle, { wishlisted: [], variantData: [] });
+        return
+      }
       const response = await this.handleRequest({ action, productVariantId, ...params });
       this.updateWishlistData(action, productVariantId, params.productHandle, response);
     } catch (error) {
@@ -114,20 +244,30 @@ class WishlistApi {
 
   updateWishlistData(action, productVariantId, productHandle, response) {
     let { wishlisted = [], variantData = [] } = this.wishlistData;
-
-    if (action === "add" || action === "fetch") {
-      // Merge new response data with existing arrays
-      wishlisted = [...wishlisted, ...(response.wishlisted || [])];
-      variantData = [...variantData, ...(response.variantData || [])];
-      if (action === 'fetch') wishlisted.push({ productVariantId, productHandle, shop: this.shop });
-    } else if (action === "remove") {
-      // Filter out the removed item
-      wishlisted = wishlisted.filter((item) => item.productVariantId !== productVariantId);
-      variantData = variantData.filter((item) => item.id !== productVariantId);
+    switch (action) {
+      case "add":
+      case "fetch":
+        wishlisted = [...wishlisted, ...(response.wishlisted || [])];
+        variantData = [...variantData, ...(response.variantData || [])];
+        if (action === "fetch") {
+          wishlisted.push({ productVariantId, productHandle, shop: this.shop });
+        }
+        break;
+      case "remove":
+        wishlisted = wishlisted.filter((item) => item.productVariantId !== productVariantId);
+        variantData = variantData.filter((item) => item.id !== productVariantId);
+        break;
+      default:
+        console.warn("Unknown action:", action);
+        break;
     }
-    const data = { wishlisted, variantData }
-    if (!this.customerId) this.setGuestData(data);
-    pubsub.publish('wishlist:updated', { data, action })
+    const updatedData = { wishlisted, variantData };
+    if (!this.customerId) {
+      this.setGuestData(updatedData);
+    }
+
+    pubsub.publish("wishlist:updated", { data: updatedData, action });
+
   }
 
   async handleRequest(params) {
@@ -135,7 +275,7 @@ class WishlistApi {
       const formData = new FormData();
       Object.entries(params).forEach(([key, value]) => formData.append(key, value));
       formData.append("shop", this.shop);
-      if (this.customerId) formData.append("customer", this.customerId);
+      if (this.customerId) formData.append("customerId", this.customerId);
 
       const response = await fetch(`${this.appUrl}/api/wishlist`, {
         method: "POST",
@@ -155,11 +295,12 @@ class WishlistApi {
 }
 
 class WishlistManager {
-  #appUrl = "https://chosen-definitely-toolbar-ana.trycloudflare.com";
+  #appUrl = "https://courier-compiled-postposted-worldwide.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   wishlistData = { wishlisted: [], variantData: [] };
   wishlistApi = new WishlistApi(this, this.#appUrl, this.#shop, this.#customerId, this.wishlistData);
+  wishlistUi = new WishlistUI(this, this.#appUrl, this.#shop, this.#customerId);
   #toasterConfig;
   #selectors;
   #options;

@@ -5,6 +5,7 @@ import {
   deleteWishlist,
   fetchProductData,
   getCustomerWishlistedProducts,
+  getSearchResults,
 } from "../services/wishlist";
 
 
@@ -37,7 +38,6 @@ export async function action({ request }) {
     const method = request.method;
     const formData = await request.formData();
     const data = Object.fromEntries(formData);
-
     const {
       customerId,
       productVariantId,
@@ -45,6 +45,7 @@ export async function action({ request }) {
       productHandle,
       variantData,
       action,
+      query,
     } = data;
 
 
@@ -81,6 +82,13 @@ export async function action({ request }) {
           return json({ message: "Missing data" }, { status: 400 });
         }
         const response = await fetchProductData(shop, productVariantId);
+        return json({ ...response });
+      }
+      case "search": {
+        if (!query || !shop || !customerId) {
+          return json({ message: "Missing data" }, { status: 400 });
+        }
+        const response = await getSearchResults(shop, query, customerId);
         return json({ ...response });
       }
 
