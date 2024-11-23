@@ -1,36 +1,68 @@
 class PubSub {
   constructor() {
-    this.events = {};
+    this.events = new Map(); // Use a Map for better performance with frequent operations
   }
+
+  /**
+   * Subscribes to an event with a callback.
+   * @param {string} event - Event name.
+   * @param {Function} callback - Callback function.
+   */
   subscribe(event, callback) {
-    if (!this.events[event]) {
-      this.events[event] = [];
+    if (!this.events.has(event)) {
+      this.events.set(event, new Set()); // Use a Set to prevent duplicate callbacks
     }
-    this.events[event].push(callback);
+    this.events.get(event).add(callback);
   }
 
+  /**
+   * Unsubscribes a callback from an event.
+   * @param {string} event - Event name.
+   * @param {Function} callback - Callback function to remove.
+   */
   unsubscribe(event, callback) {
-    if (!this.events[event]) return;
-
-    this.events[event] = this.events[event].filter((cb) => cb !== callback);
+    if (this.events.has(event)) {
+      this.events.get(event).delete(callback);
+      if (this.events.get(event).size === 0) {
+        this.events.delete(event); // Clean up the event if no callbacks remain
+      }
+    }
   }
 
+  /**
+   * Publishes an event to all its subscribers.
+   * @param {string} event - Event name.
+   * @param {any} data - Data to pass to the subscribers.
+   */
   publish(event, data) {
-    if (!this.events[event]) return;
-
-    this.events[event].forEach((callback) => callback(data));
+    if (!this.events.has(event)) return;
+    for (const callback of this.events.get(event)) {
+      try {
+        callback(data); // Execute each callback safely
+      } catch (error) {
+        console.error(`Error in callback for event "${event}":`, error);
+      }
+    }
   }
+}
+
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
 }
 
 const pubsub = new PubSub();
 
 class WishlistUI {
   constructor(wishlistManager, url, shop, customerId) {
-    this.wishlistData = { wishlisted: [], variantData: [] };
-    this.wishlistManager = wishlistManager
+    this.wishlistManager = wishlistManager;
     this.shop = shop;
     this.customerId = customerId;
-    this.appUrl = url
+    this.appUrl = url;
+
     this.selectors = {
       dialog: "[wishlist-dialog]",
       close: "[wishlist-close]",
@@ -39,115 +71,93 @@ class WishlistUI {
       productContainer: ".product-container",
       search: "[type='search']",
     };
+
     this.dialog = document.querySelector(this.selectors.dialog);
+    this.productContainer = null;
+
     this.init();
   }
 
   init() {
-    const popupTriggerIcon = document.querySelector(this.selectors.icon);
-    const closeButton = this.dialog?.querySelector(this.selectors.close);
-    const search = this.dialog.querySelector(this.selectors.search);
+    this.productContainer = this.getProductContainer();
 
-    popupTriggerIcon?.addEventListener("click", () => this.showDialog());
-    closeButton?.addEventListener("click", () => this.closeDialog());
+    document.querySelector(this.selectors.icon)?.addEventListener("click", () => this.showDialog());
+    this.dialog?.querySelector(this.selectors.close)?.addEventListener("click", () => this.closeDialog());
     this.dialog?.addEventListener("close", () => this.closeDialog());
+    this.dialog?.querySelector(this.selectors.search)?.addEventListener("input", (e) => this.debounceSearch(e.target.value));
+  }
+  debounceSearch = debounce((params) => {
+    this.getSearchResults(params);
+  }, 500);
 
-    search?.addEventListener("input", (event) => this.handleSeach(event.target.value));
+  async getSearchResults(query) {
+    try {
+      const response = await fetch(`${this.appUrl}/api/wishlist`, {
+        method: "POST",
+        body: new URLSearchParams({
+          action: "search",
+          shop: this.shop,
+          query,
+          customerId: this.customerId,
+        }),
+      });
 
+      if (!response.ok) throw new Error("Failed to fetch wishlist data.");
+
+      const data = await response.json();
+      this.renderProducts(data.variantData);
+    } catch (error) {
+      console.error("Search Error:", error);
+    }
   }
 
-  async handleSeach(query) {
-    const formData = new FormData();
-    formData.append("action", "search");
-    formData.append("shop", this.shop);
-    formData.append("query", query);
-    formData.append("customerId", this.customerId);
-    const response = await fetch(`${this.appUrl}/api/wishlist`, {
-      method: "POST",
-      body: formData,
-    });
-    if (!response.ok) throw new Error("Failed to fetch wishlist data.");
-    const data = await response.json();
-    this.setVariantData(data);
-  }
-
-  setVariantData(data) {
-    this.wishlistData.variantData = data;
-    this.renderProductCards(data); // Render all products initially
+  getProductContainer() {
+    let container = this.dialog?.querySelector(this.selectors.productContainer);
+    if (!container) {
+      container = document.createElement("div");
+      container.className = "product-container";
+      this.dialog?.appendChild(container);
+    }
+    return container;
   }
 
   showDialog() {
-    if (this.dialog) this.dialog.showModal();
+    this.dialog?.showModal();
+    this.getSearchResults('')
   }
 
   closeDialog() {
     this.dialog?.close();
   }
 
-  renderProductCards(data) {
-    const productContainer = this.getProductContainer();
-
-    if (!productContainer) {
-      console.error("Product container not found.");
-      return;
-    }
-
-    productContainer.innerHTML = ""; // Clear existing content
-    const cards = data.map((item) => this.createProductCard(item));
-    productContainer.append(...cards); // Append all cards at once
-  }
-
-  getProductContainer() {
-    // Get or create the product container
-    let productContainer = this.dialog?.querySelector(this.selectors.productContainer);
-    if (!productContainer) {
-      productContainer = document.createElement("div");
-      productContainer.className = "product-container";
-      this.dialog.appendChild(productContainer);
-    }
-    return productContainer;
-  }
-
-  createProductCard(item) {
-    const imageUrl =
-      item?.image?.url ||
-      item?.product?.featuredMedia?.preview?.image?.url ||
-      "placeholder.jpg";
-    const title = item?.product?.title || "Product Name";
-
-    const card = document.createElement("div");
-    card.className = "product-card";
-    card.setAttribute("data-variant-id", item.id);
-
-    card.innerHTML = `
-      <span ${this.selectors.remove.substring(1)}>X</span>
-      <a href="/products/${item?.product?.handle}">
-        <div class="product-image">
-          <img src="${imageUrl}" alt="${title}" />
+  renderProducts(products) {
+    this.productContainer.innerHTML = products
+      .map(
+        (item) => `
+      <div class="product-card" data-variant-id="${item.id}">
+        <span class="remove-icon" wishlist-remove>X</span>
+        <a href="/products/${item?.product?.handle}">
+          <div class="product-image">
+            <img src="${item?.image ||item?.product?.featuredMedia?.preview?.image?.url || 'placeholder.jpg'}" alt="${item?.product?.title || 'Product Name'}" />
+          </div>
+        </a>
+        <div class="product-details">
+          <h3>${item?.product?.title || 'Product Name'}</h3>
+          <p>${item.title}</p>
         </div>
-      </a>
-      <div class="product-details">
-        <h3 title="${title}">${title}</h3>
-        <p>${item.title}</p>
-      </div>
-    `;
+      </div>`
+      )
+      .join("");
 
-    // Attach remove functionality
-    card.querySelector(this.selectors.remove).addEventListener("click", () =>
-      this.removeProduct(item.id)
-    );
-
-    return card;
-  }
-
-  removeProduct(variantId) {
-    this.wishlistData.variantData = this.wishlistData.variantData.filter(
-      (item) => item.id !== variantId
-    );
-    this.renderProductCards(this.wishlistData.variantData);
+    this.productContainer.querySelectorAll(this.selectors.remove)?.forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const variantId = e.target.closest(".product-card")?.getAttribute("data-variant-id");
+        this.wishlistManager.handleWishlistAction({ action: "remove", productVariantId: variantId });
+        pubsub.publish("wishlist:action", { action: "remove", productVariantId: variantId });
+      });
+    });
   }
 }
-
 
 
 class WishlistApi {
@@ -295,7 +305,7 @@ class WishlistApi {
 }
 
 class WishlistManager {
-  #appUrl = "https://courier-compiled-postposted-worldwide.trycloudflare.com";
+  #appUrl = "https://realty-techrepublic-insurance-marilyn.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   wishlistData = { wishlisted: [], variantData: [] };
@@ -335,13 +345,7 @@ class WishlistManager {
     },
   };
 
-  debounce(fn, delay) {
-    let timer;
-    return (...args) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn(...args), delay);
-    };
-  }
+
 
   #triggerEvent(action, product) {
     const event = new CustomEvent("wishlist:update", {
@@ -379,6 +383,7 @@ class WishlistManager {
     this.wishlistData = data;
     this.#updateUI();
     this.#showToaster(action);
+    this.#handleVariantChange()
   }
 
   #updateUI() {
@@ -388,7 +393,7 @@ class WishlistManager {
       const productId = button.getAttribute(
         useVariantId ? "data-product-id" : "data-product-handle"
       );
-      const isWishlisted = this.wishlistData.wishlisted.some((item) =>
+      const isWishlisted = this.wishlistData?.wishlisted?.some((item) =>
         useVariantId
           ? item.productVariantId === productId
           : item.productHandle === productId
@@ -397,9 +402,27 @@ class WishlistManager {
     });
   }
 
-  #debounceWishlistAction = this.debounce((params) => {
+  #debounceWishlistAction = debounce((params) => {
     pubsub.publish('wishlist:action', params)
   }, 300);
+
+
+  // Handle variant changes in the wishlist
+  #handleVariantChange() {
+    if (!this.#options.variantChange) return;
+    document.addEventListener("change", (event) => {
+      const section = event.target.closest("section");
+      const form = section?.querySelector("form[action*='/cart/add']");
+      if (!form) return;
+
+      const variantId = form.querySelector('[name="id"]').value;
+      const wishlistIcon = section.querySelector(this.#selectors.wishlistIcon);
+      if (wishlistIcon && variantId) wishlistIcon.setAttribute("data-product-id", variantId);
+
+      this.#updateUI();
+      this.#triggerEvent("wishlist:variantChange", { variantId });
+    });
+  }
 
   #showToaster(status) {
     if (!this.#options.toaster) return;

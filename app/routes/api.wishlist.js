@@ -85,7 +85,7 @@ export async function action({ request }) {
         return json({ ...response });
       }
       case "search": {
-        if (!query || !shop || !customerId) {
+        if ( !shop || !customerId) {
           return json({ message: "Missing data" }, { status: 400 });
         }
         const response = await getSearchResults(shop, query, customerId);

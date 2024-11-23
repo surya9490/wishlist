@@ -163,27 +163,49 @@ export async function fetchProductData(shop, productVariantId) {
 
 export async function getSearchResults(shop, query, customerId) {
   try {
-    const matchingItems = await prisma.wishlist.findMany({
-      where: {
-        shop,
-        customerId,
+    const whereCondition = {
+      shop,
+      customerId,
+      ...(query && {
         productTitle: {
           contains: query.toLowerCase(),
+          mode: "insensitive", // Ensure case-insensitive matching
         },
+      }),
+    };
+
+    // Fetch wishlist items based on condition
+    const matchingItems = await prisma.wishlist.findMany({
+      where: whereCondition,
+      select: {
+        productVariantId: true, // Select only the required fields for efficiency
+        productTitle: true,
       },
     });
 
-    const variantData = await fetchMultipleProductVariants(shop, matchingItems.map((item) => item.productVariantId));
-    console.log(variantData, '----------------------')
-    if (variantData.length === 0) {
-      return { message: "Matching items found", data: matchingItems };
+    // Fetch variant data only if there are matching items
+    const variantData =
+      matchingItems.length > 0
+        ? await fetchMultipleProductVariants(
+            shop,
+            matchingItems.map((item) => item.productVariantId)
+          )
+        : [];
+
+    // Return results based on the fetched data
+    if (variantData.length > 0) {
+      console.log(variantData,'-----------------')
+      return { message: "Matching items found", variantData: variantData };
     } else {
-      return { message: "No matching items found" };
+      return { message: "No matching items found", data: matchingItems };
     }
   } catch (error) {
-    return handleError("Error fetching wishlist items", error);
+    // Improved error handling
+    console.error("Error fetching wishlist items:", error);
+    throw new Error("Error fetching wishlist items");
   }
 }
+
 
 // Fetch a single product variant
 const fetchProductVariant = async (shop, variantId) => {
