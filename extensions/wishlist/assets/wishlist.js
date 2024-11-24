@@ -96,12 +96,12 @@ class WishlistUI {
     document.querySelector("[wishlist-count]").textContent = params.count;
   }
 
-  async getSearchResults(query) {
+  async getSearchResults(query, action) {
     try {
       const response = await fetch(`${this.appUrl}/api/wishlist`, {
         method: "POST",
         body: new URLSearchParams({
-          action: "search",
+          action:action || 'search',
           shop: this.shop,
           query,
           customerId: this.customerId,
@@ -129,7 +129,7 @@ class WishlistUI {
 
   showDialog() {
     this.dialog?.showModal();
-    this.getSearchResults('')
+    this.getSearchResults('','view')
   }
 
   closeDialog() {
@@ -312,7 +312,7 @@ class WishlistApi {
 }
 
 class WishlistManager {
-  #appUrl = "https://power-design-duo-easier.trycloudflare.com";
+  #appUrl = "https://poem-josh-barriers-resistance.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   wishlistData = { wishlisted: [], variantData: [] };

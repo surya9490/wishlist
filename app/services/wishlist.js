@@ -1,11 +1,9 @@
-import { json } from "@remix-run/node";
-import prisma from "../db.server";
 
-// Helper function for error responses
-const handleError = (message, error, status = 500) => {
-  console.error(message, error);
-  return { message, error: error.message || error, status };
-};
+import prisma from "../db.server";
+import handleError from "../Helpers/error";
+import {  updatePageCount } from "./dashboard";
+
+
 
 // Fetch access token from the database
 const getAccessToken = async (shop) => {
@@ -168,7 +166,7 @@ export async function fetchProductData(shop, productVariantId) {
   }
 }
 
-export async function getSearchResults(shop, query, customerId) {
+export async function getSearchResults(shop, query, customerId, action) {
   try {
     const whereCondition = {
       shop,
@@ -201,6 +199,8 @@ export async function getSearchResults(shop, query, customerId) {
           matchingItems.map((item) => item.productVariantId)
         )
         : [];
+
+    if (action === 'view') updatePageCount({ customerId, shop });
 
     // Return results based on the fetched data
     if (variantData.length > 0) {

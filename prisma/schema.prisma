@@ -3,12 +3,13 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL") 
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
-  id            String    @id @default(uuid())
+  session_id    String    @id @default(auto()) @map("_id") @db.ObjectId
+  id            String    @unique
   shop          String
   state         String
   isOnline      Boolean   @default(false)
@@ -25,14 +26,27 @@ model Session {
   emailVerified Boolean?  @default(false)
 }
 
+model Analytics {
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  addToCart  Int    @default(0)
+  orders     Int    @default(0)
+  customerId String
+  shop       String
+}
 
+model Merchant {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  shop       String    @unique
+  lastViewed DateTime? @default(now()) // Optional timestamp of the last visit
+  pageViews  Int?      @default(0) // Optional count of page views
+}
 
 model Wishlist {
-  id               Int      @id @default(autoincrement())
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
   customerId       String
   productVariantId String
   productHandle    String?
   shop             String
-  createdAt        DateTime @default(now()) 
+  createdAt        DateTime @default(now())
   productTitle     String?
 }
