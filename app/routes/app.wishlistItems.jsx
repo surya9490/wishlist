@@ -13,5 +13,4 @@ export async function loader({request}) {
 
 export default function ShowWishListedItems() {
   const loader = useLoaderData()
-  console.log(loader)
 }

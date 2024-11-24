@@ -81,6 +81,7 @@ class WishlistUI {
 
   init() {
     this.productContainer = this.getProductContainer();
+    pubsub.subscribe("wishlist:count", (params) => this.updateCount(params));
 
     document.querySelector(this.selectors.icon)?.addEventListener("click", () => this.showDialog());
     this.dialog?.querySelector(this.selectors.close)?.addEventListener("click", () => this.closeDialog());
@@ -89,7 +90,11 @@ class WishlistUI {
   }
   debounceSearch = debounce((params) => {
     this.getSearchResults(params);
-  }, 500);
+  }, 300);
+
+  updateCount(params) {
+    document.querySelector("[wishlist-count]").textContent = params.count;
+  }
 
   async getSearchResults(query) {
     try {
@@ -179,9 +184,10 @@ class WishlistApi {
 
   async loadWishListData() {
     try {
+      debugger
       const data = await this.getWishlistedData();
       const syncedData = await this.syncUserDataWithGuest(data);
-      this.wishlistManager.handleUpdatedData({ data: syncedData, action: "load" });
+      this.wishlistManager.handleUpdatedData({ data: syncedData, action: "load",response:syncedData?.count });
       this.initialized = true; // Mark as initialized
     } catch (error) {
       this.handleError(error);
@@ -196,6 +202,7 @@ class WishlistApi {
     try {
       const response = await fetch(`${this.appUrl}/api/wishlist?customer=${this.customerId}&shop=${this.shop}`);
       if (!response.ok) throw new Error("Failed to fetch wishlist data.");
+      pubsub.publish("wishlist:count", { count: response.count });
       return await response.json();
     } catch (error) {
       this.handleError(error);
@@ -216,7 +223,6 @@ class WishlistApi {
   }
 
   async syncUserDataWithGuest(data) {
-    debugger
     if (!this.customerId) return data;
     const guestUserData = this.getGuestData();
     if (guestUserData.wishlisted.length === 0) return data;
@@ -277,7 +283,7 @@ class WishlistApi {
       this.setGuestData(updatedData);
     }
 
-    pubsub.publish("wishlist:updated", { data: updatedData, action });
+    pubsub.publish("wishlist:updated", { data: updatedData, action, response, count: response.count });
 
   }
 
@@ -306,7 +312,7 @@ class WishlistApi {
 }
 
 class WishlistManager {
-  #appUrl = "https://dot-threatened-much-tournaments.trycloudflare.com";
+  #appUrl = "https://power-design-duo-easier.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   wishlistData = { wishlisted: [], variantData: [] };
@@ -380,10 +386,15 @@ class WishlistManager {
     });
   }
 
-  handleUpdatedData({ data, action }) {
+  handleUpdatedData({ data, action, response }) {
+
     this.wishlistData = data;
     this.#updateUI();
-    if(action === 'add' || action === 'remove') this.#showToaster(action);
+    if (action === 'add' || action === 'remove') {
+      this.#triggerEvent(response?.method, response?.variantData[0]);
+      this.#showToaster(action, response?.variantData[0]);
+    }
+    pubsub.publish('wishlist:count', { count: response?.count || response })
     this.#handleVariantChange()
   }
 
@@ -425,7 +436,7 @@ class WishlistManager {
     });
   }
 
-  #showToaster(status) {
+  #showToaster(status, data) {
     if (!this.#options.toaster) return;
     const toaster = document.querySelector(this.#selectors.toaster);
     if (!toaster) return;

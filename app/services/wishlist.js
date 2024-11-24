@@ -48,14 +48,16 @@ const shopifyGraphQL = async (shop, query, variables) => {
 // Create a wishlist entry for a customer
 export async function createWishlist({ customerId, productVariantId, shop, productHandle }) {
   try {
+    console.time("createWishlist");
     const result = await fetchProductVariant(shop, productVariantId);
     const productTitle = result?.product?.title || "Unknown Product";
-    const wishlist = await prisma.wishlist.create({
-      data: { customerId, productVariantId, productHandle, shop, productTitle },
-    });
-
-
-    return { message: "Product added to wishlist", method: "add", variantData: [result], wishlisted: [wishlist] };
+    const [wishlist, variantData] = await Promise.all([
+      prisma.wishlist.create({ data: { customerId, productVariantId, productHandle, shop, productTitle }, }),
+      fetchProductVariant(shop, productVariantId),
+    ]);
+    const count = await fetchWishlistCount(shop, customerId);
+    console.timeEnd("createWishlist");
+    return { message: "Product added to wishlist", method: "add", count, variantData: [variantData], wishlisted: [wishlist] };
   } catch (error) {
     return handleError("Error adding product to wishlist", error);
   }
@@ -64,11 +66,12 @@ export async function createWishlist({ customerId, productVariantId, shop, produ
 // Delete a product from the wishlist
 export async function deleteWishlist({ customerId, productVariantId, shop, productHandle }) {
   try {
-    const result = await prisma.wishlist.deleteMany({
-      where: { customerId, productVariantId, productHandle, shop },
-    });
-
-    return { message: "Product removed from wishlist", method: "remove", result };
+    const [result, variantData] = await Promise.all([
+      prisma.wishlist.deleteMany({ where: { customerId, productVariantId, productHandle, shop } }),
+      fetchProductVariant(shop, productVariantId),
+    ])
+    const count = await fetchWishlistCount(shop, customerId);
+    return { message: "Product removed from wishlist", method: "remove", count, result, variantData: [variantData] };
   } catch (error) {
     return handleError("Error removing product from wishlist", error);
   }
@@ -80,9 +83,12 @@ export async function getCustomerWishlistedProducts({ customerId, shop }) {
 
   try {
     const wishlisted = await prisma.wishlist.findMany({ where: { customerId, shop } });
-    const variantData = await fetchMultipleProductVariants(shop, wishlisted.map((item) => item.productVariantId));
+    const [variantData, count] = await Promise.all([
+      fetchMultipleProductVariants(shop, wishlisted.map((item) => item.productVariantId)),
+      fetchWishlistCount(shop, customerId)
+    ])
 
-    return { wishlisted, variantData, message: "Wishlist fetched successfully", status: 200, };
+    return { wishlisted, variantData, count, message: "Wishlist fetched successfully", status: 200, };
   } catch (error) {
     return handleError("Error fetching customer wishlist", error);
   }
@@ -90,10 +96,8 @@ export async function getCustomerWishlistedProducts({ customerId, shop }) {
 
 // Bulk update wishlist (e.g., for guest users or syncing data)
 export async function bulkUpdate({ customerId, variantData, shop }) {
-  console.log("variantData before processing:", variantData);
 
   if (typeof variantData === "string") {
-    console.log("Parsing variantData string:", variantData);
     try {
       variantData = JSON.parse(variantData);
     } catch (error) {
@@ -138,10 +142,13 @@ export async function bulkUpdate({ customerId, variantData, shop }) {
         updateItems.map((item) => item.productVariantId)
       );
 
+      const count = await fetchWishlistCount(shop, customerId);
+
       return {
         message: "New items added to wishlist",
         wishlisted: addedItems,
         variantData: variantDataDetails,
+        count
       };
     }
 
@@ -190,15 +197,14 @@ export async function getSearchResults(shop, query, customerId) {
     const variantData =
       matchingItems.length > 0
         ? await fetchMultipleProductVariants(
-            shop,
-            matchingItems.map((item) => item.productVariantId)
-          )
+          shop,
+          matchingItems.map((item) => item.productVariantId)
+        )
         : [];
 
     // Return results based on the fetched data
     if (variantData.length > 0) {
-      console.log(variantData,'-----------------')
-      return { message: "Matching items found", variantData: variantData,wishlisted: matchingItems };
+      return { message: "Matching items found", variantData: variantData, wishlisted: matchingItems };
     } else {
       return { message: "No matching items found", data: matchingItems };
     }
@@ -206,6 +212,21 @@ export async function getSearchResults(shop, query, customerId) {
     // Improved error handling
     console.error("Error fetching wishlist items:", error);
     throw new Error("Error fetching wishlist items");
+  }
+}
+
+export async function fetchWishlistCount(shop, customerId) {
+  try {
+    const count = await prisma.wishlist.count({
+      where: {
+        customerId,
+        shop,
+      },
+    });
+    return count;
+  } catch (error) {
+    console.error("Error fetching wishlist count:", error);
+    throw new Error("Error fetching wishlist count");
   }
 }
 
