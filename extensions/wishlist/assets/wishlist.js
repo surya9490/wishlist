@@ -101,7 +101,7 @@ class WishlistUI {
       const response = await fetch(`${this.appUrl}/api/wishlist`, {
         method: "POST",
         body: new URLSearchParams({
-          action:action || 'search',
+          action: action || 'search',
           shop: this.shop,
           query,
           customerId: this.customerId,
@@ -129,7 +129,7 @@ class WishlistUI {
 
   showDialog() {
     this.dialog?.showModal();
-    this.getSearchResults('','view')
+    this.getSearchResults('', 'view')
   }
 
   closeDialog() {
@@ -173,7 +173,7 @@ class WishlistApi {
     this.appUrl = appUrl;
     this.shop = shop;
     this.customerId = customerId;
-    this.wishlistData = wishlistData;
+    this.wishlistData = { wishlisted: [], variantData: [] };
 
   }
 
@@ -184,10 +184,10 @@ class WishlistApi {
 
   async loadWishListData() {
     try {
-      debugger
       const data = await this.getWishlistedData();
       const syncedData = await this.syncUserDataWithGuest(data);
-      this.wishlistManager.handleUpdatedData({ data: syncedData, action: "load",response:syncedData?.count });
+      this.wishlistManager.handleUpdatedData({ data: syncedData, action: "load", response: syncedData?.count });
+      this.wishlistData = syncedData;
       this.initialized = true; // Mark as initialized
     } catch (error) {
       this.handleError(error);
@@ -260,6 +260,7 @@ class WishlistApi {
   }
 
   updateWishlistData(action, productVariantId, productHandle, response) {
+    debugger
     let { wishlisted = [], variantData = [] } = this.wishlistData;
     switch (action) {
       case "add":
@@ -272,18 +273,18 @@ class WishlistApi {
         break;
       case "remove":
         wishlisted = wishlisted.filter((item) => item.productVariantId !== productVariantId);
-        variantData = variantData.filter((item) => item.id !== productVariantId);
+        variantData = variantData.filter((item) => item.id.includes(productVariantId));
         break;
       default:
         console.warn("Unknown action:", action);
         break;
     }
-    const updatedData = { wishlisted, variantData };
+    this.wishlistData = { wishlisted, variantData };
     if (!this.customerId) {
-      this.setGuestData(updatedData);
+      this.setGuestData(this.wishlistData);
     }
 
-    pubsub.publish("wishlist:updated", { data: updatedData, action, response, count: response.count });
+    pubsub.publish("wishlist:updated", { data:this.wishlistData, action, response, count: response.count });
 
   }
 
@@ -312,7 +313,7 @@ class WishlistApi {
 }
 
 class WishlistManager {
-  #appUrl = "https://poem-josh-barriers-resistance.trycloudflare.com";
+  #appUrl = "https://leadership-romania-chan-nokia.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   wishlistData = { wishlisted: [], variantData: [] };
@@ -387,8 +388,9 @@ class WishlistManager {
   }
 
   handleUpdatedData({ data, action, response }) {
-
+    console.log(this.wishlistData)
     this.wishlistData = data;
+    console.log(this.wishlistData)
     this.#updateUI();
     if (action === 'add' || action === 'remove') {
       this.#triggerEvent(response?.method, response?.variantData[0]);

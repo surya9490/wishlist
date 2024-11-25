@@ -149,10 +149,14 @@ export async function fetchDashboardData({ shop }) {
 export async function fetchTopWishlistedItems({ shop }) {
   try {
     // Step 1: Group by productHandle and get the top 10 most wishlisted items
-    const groupedItems = await prisma.wishlist.groupBy({
+    const topWishlistedItems = await prisma.wishlist.groupBy({
       by: ['productHandle'], // Group by product handle
       _count: {
-        productHandle: true, // Count the occurrences of each product handle
+        productHandle: true, // Count occurrences of each product handle
+      },
+      _min: {
+        productTitle: true, // Use the minimum value for productTitle
+        productVariantId: true, // Use the minimum value for productVariantId
       },
       where: {
         shop, // Filter by shop
@@ -164,35 +168,14 @@ export async function fetchTopWishlistedItems({ shop }) {
       },
       take: 10, // Limit to top 10 items
     });
-
-    // Extract product handles from the grouped items
-    const productHandles = groupedItems.map((item) => item.productHandle);
-
-    // Step 2: Fetch the additional details for these product handles
-    const topWishlistedItems = await prisma.wishlist.findMany({
-      where: {
-        shop,
-        productHandle: { in: productHandles }, // Filter by the top 10 product handles
-      },
-      select: {
-        productHandle: true,
-        productTitle: true,
-        productVariantId: true,
-        shop: true,
-      },
-    });
-
-    // Step 3: Combine counts with product details
-    return topWishlistedItems.map((item) => {
-      const countData = groupedItems.find((g) => g.productHandle === item.productHandle);
-      return {
-        productHandle: item.productHandle,
-        productTitle: item.productTitle || 'Untitled Product',
-        productVariantId: item.productVariantId,
-        count: countData?._count?.productHandle || 0, 
-        shop: item.shop,
-      };
-    });
+    // Format the results
+    return topWishlistedItems.map((item) => ({
+      productHandle: item.productHandle,
+      productTitle: item._min.productTitle || 'Untitled Product',
+      productVariantId: item._min.productVariantId || null,
+      count: item._count.productHandle,
+    }));
+  
   } catch (error) {
     console.error('Error fetching top wishlisted items:', error);
     throw new Error('Failed to fetch top wishlisted items');

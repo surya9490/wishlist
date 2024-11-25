@@ -2,8 +2,8 @@
 import { json } from "@remix-run/node";
 import { fetchDashboardData, fetchTopWishlistedItems } from "../services/dashboard";
 import { authenticate } from "../shopify.server";
-import { BlockStack, Box, Card, DataTable, Divider, Grid, Page, ResourceItem, ResourceList, Text } from '@shopify/polaris';
-import { Link, Links, useLoaderData } from "@remix-run/react";
+import { BlockStack, Box, Card, Divider, Grid, Page, ResourceItem, ResourceList, Text } from '@shopify/polaris';
+import { useLoaderData } from "@remix-run/react";
 
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
@@ -38,9 +38,7 @@ export default function Dashboard() {
 
   ]
 
-  console.log(topWishlistedItems, '--------------')
-
-
+  console.log(topWishlistedItems);
 
   return (
     <Page style={{ maxWidth: '1200px', margin: '0 auto' }}>
