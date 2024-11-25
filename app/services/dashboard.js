@@ -146,36 +146,65 @@ export async function fetchDashboardData({ shop }) {
 
 
 
-export async function fetchTopWishlistedItems({ shop }) {
+export async function fetchTopWishlistedItems({ admin }) {
   try {
-    // Step 1: Group by productHandle and get the top 10 most wishlisted items
+
+    // Step 2: Fetch wishlist counts grouped by productHandle using Prisma
     const topWishlistedItems = await prisma.wishlist.groupBy({
-      by: ['productHandle'], // Group by product handle
+      by: ['productHandle'],
       _count: {
-        productHandle: true, // Count occurrences of each product handle
-      },
-      _min: {
-        productTitle: true, // Use the minimum value for productTitle
-        productVariantId: true, // Use the minimum value for productVariantId
+        productHandle: true,
       },
       where: {
-        shop, // Filter by shop
+        shop: admin.shop, // Use the shop from the authenticated admin
       },
       orderBy: {
         _count: {
-          productHandle: 'desc', // Sort by count in descending order
+          productHandle: 'desc',
         },
       },
-      take: 10, // Limit to top 10 items
+      take: 10, // Limit to top 10
     });
-    // Format the results
-    return topWishlistedItems.map((item) => ({
-      productHandle: item.productHandle,
-      productTitle: item._min.productTitle || 'Untitled Product',
-      productVariantId: item._min.productVariantId || null,
-      count: item._count.productHandle,
-    }));
-  
+
+    const productHandles = topWishlistedItems.map((item) => item.productHandle);
+
+    console.log(productHandles,'----------------')
+
+    const productDetails = [];
+
+    for (const handle of productHandles) {
+      const graphqlQuery = `#graphql
+    query getProductByHandle($handle: String!) {
+      productByHandle(handle: $handle) {
+        title
+        id
+        handle
+      }
+    }
+  `;
+      const response = await admin.graphql(graphqlQuery, {
+        variables: { handle },
+      });
+
+      const shopifyData = await response.json();
+
+      const matchingItem = topWishlistedItems.find(
+        (item) => item.productHandle === handle
+      );
+
+      // Combine product details with count
+      if (shopifyData.data.productByHandle) {
+        productDetails.push({
+          ...shopifyData.data.productByHandle,
+          count: matchingItem._count.productHandle, // Add count to product details
+        });
+      }
+
+     
+    }
+    return productDetails;
+
+
   } catch (error) {
     console.error('Error fetching top wishlisted items:', error);
     throw new Error('Failed to fetch top wishlisted items');

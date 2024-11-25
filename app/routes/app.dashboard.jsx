@@ -6,18 +6,18 @@ import { BlockStack, Box, Card, Divider, Grid, Page, ResourceItem, ResourceList,
 import { useLoaderData } from "@remix-run/react";
 
 export async function loader({ request }) {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const { shop } = session;
-  const [dashboardData, topWishlistedItems] = await Promise.all([
+  const [dashboardData, productDetails] = await Promise.all([
     fetchDashboardData({ shop }),
-    fetchTopWishlistedItems({ shop }),
+    fetchTopWishlistedItems({ shop, admin }),
   ]);
-  return json({ ...dashboardData, topWishlistedItems });
+  return json({ ...dashboardData, productDetails, shop });
 }
 
 
 export default function Dashboard() {
-  const { pageViews, wishlistedItems, customersCount, productHandlesCount, topWishlistedItems } = useLoaderData();
+  const { shop, pageViews, wishlistedItems, customersCount, productHandlesCount, productDetails } = useLoaderData();
   const data = [
     {
       title: 'Wishlisted Page views',
@@ -38,7 +38,7 @@ export default function Dashboard() {
 
   ]
 
-  console.log(topWishlistedItems);
+  console.log(productDetails, '----------------')
 
   return (
     <Page style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -50,43 +50,62 @@ export default function Dashboard() {
             ))
           }
         </Grid>
-        <Card title="Top 10 Items in Public Wishlists">
+        {productDetails?.length > 0 && (<Card title="Top 10 Items in Public Wishlists">
           <BlockStack gap={"600"}>
-            <Text variant="headingSm" as="h2">
+            <Text variant="bodyMd" as="h2">
               Top Wishlisted Products
             </Text>
-            <ResourceList
-              resourceName={{ singular: 'customer', plural: 'customers' }}
-              items={topWishlistedItems}
-              renderItem={(item) => {
-                const { productHandle, productTitle, productVariantId, count, shop } = item;
-                const url = `https://${shop}/admin/products/${productVariantId}`;
-                return (
-                  <ResourceItem
-                    id={productHandle}
-                    title={productTitle}
-                    url={url}
-                    accessibilityLabel={`View details for`}
-                  >
-                    <Grid>
-                      <Grid.Cell columnSpan={{xs: 10, sm: 5, md: 5, lg: 10, xl: 10}}>
-                        <Text variant="bodyMd" as="p" >
-                          {productTitle}
-                        </Text>
-                      </Grid.Cell>
-                      <Grid.Cell columnSpan={{xs: 2, sm: 1, md: 1, lg: 2, xl: 2}}>
-                        <Text variant="bodyMd" as="p" alignment="end">
-                          {count}
-                        </Text>
-                      </Grid.Cell>
-                    </Grid>
-                  </ResourceItem>
-                );
-              }}
-            />
-            <Divider />
+            <BlockStack gap={"200"}>
+              <Grid>
+                <Grid.Cell columnSpan={{ xs: 10, sm: 5, md: 5, lg: 10, xl: 10 }}>
+                  <Text variant="headingSm" as="h3" >
+                    productTitle
+                  </Text>
+                </Grid.Cell>
+                <Grid.Cell columnSpan={{ xs: 2, sm: 1, md: 1, lg: 2, xl: 2 }}>
+                  <Text variant="headingSm" as="h3" alignment="end">
+                    Count
+                  </Text>
+                </Grid.Cell>
+              </Grid>
+              <Divider />
+              <ResourceList
+                resourceName={{ singular: 'customer', plural: 'customers' }}
+                items={productDetails}
+                renderItem={(item) => {
+                  const { productHandle, title, id, count } = item;
+                  const productId = id.split('/').pop();
+                  const url = `https://${shop}/admin/products/${productId}`;
+                  return (
+                    <ResourceItem
+                      id={productHandle}
+                      title={title}
+                      accessibilityLabel={`View details for`}
+                    >
+                      <Grid>
+                        <Grid.Cell columnSpan={{ xs: 10, sm: 5, md: 5, lg: 10, xl: 10 }}>
+                          <Text variant="bodyMd" as="p" >
+                            <a href={url} target="_blank" rel="noopener noreferrer">
+                              {title}
+                            </a>
+
+                          </Text>
+                        </Grid.Cell>
+                        <Grid.Cell columnSpan={{ xs: 2, sm: 1, md: 1, lg: 2, xl: 2 }}>
+                          <Text variant="bodyMd" as="p" alignment="end">
+                            {count}
+                          </Text>
+                        </Grid.Cell>
+                      </Grid>
+                    </ResourceItem>
+                  );
+                }}
+              />
+              <Divider />
+
+            </BlockStack>
           </BlockStack>
-        </Card>
+        </Card>)}
 
       </BlockStack>
     </Page>

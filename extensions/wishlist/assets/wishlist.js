@@ -313,7 +313,7 @@ class WishlistApi {
 }
 
 class WishlistManager {
-  #appUrl = "https://leadership-romania-chan-nokia.trycloudflare.com";
+  #appUrl = "https://consciousness-continues-classical-consisting.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   wishlistData = { wishlisted: [], variantData: [] };

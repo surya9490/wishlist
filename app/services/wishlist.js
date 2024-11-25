@@ -1,47 +1,13 @@
 
 import prisma from "../db.server";
 import handleError from "../Helpers/error";
+import shopifyGraphQL from "../Helpers/graphqlQuery";
 import {  updatePageCount } from "./dashboard";
-
-
-
-// Fetch access token from the database
-const getAccessToken = async (shop) => {
-  const accessTokenRecord = await prisma.session.findFirst({ where: { shop } });
-  if (!accessTokenRecord || !accessTokenRecord.accessToken) {
-    throw new Error("Access token not found for the shop.");
-  }
-  return accessTokenRecord.accessToken;
-};
 
 // Helper function for encoding GIDs
 const encodeGId = (type, id) => Buffer.from(`gid://shopify/${type}/${id}`).toString("base64");
 
-// Shopify GraphQL query helper
-const shopifyGraphQL = async (shop, query, variables) => {
-  const accessToken = await getAccessToken(shop);
-  const graphqlUrl = `https://${shop}/admin/api/2024-10/graphql.json`;
 
-  try {
-    const response = await fetch(graphqlUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Access-Token": accessToken,
-      },
-      body: JSON.stringify({ query, variables }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data?.data;
-  } catch (error) {
-    throw new Error(error.message);
-  }
-};
 
 // Create a wishlist entry for a customer
 export async function createWishlist({ customerId, productVariantId, shop, productHandle }) {
