@@ -38,7 +38,6 @@ export default function Dashboard() {
 
   ]
 
-  console.log(productDetails, '----------------')
 
   return (
     <Page style={{ maxWidth: '1200px', margin: '0 auto' }}>

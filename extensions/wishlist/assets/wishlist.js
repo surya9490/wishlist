@@ -184,6 +184,7 @@ class WishlistApi {
 
   async loadWishListData() {
     try {
+      debugger
       const data = await this.getWishlistedData();
       const syncedData = await this.syncUserDataWithGuest(data);
       this.wishlistManager.handleUpdatedData({ data: syncedData, action: "load", response: syncedData?.count });
@@ -273,7 +274,7 @@ class WishlistApi {
         break;
       case "remove":
         wishlisted = wishlisted.filter((item) => item.productVariantId !== productVariantId);
-        variantData = variantData.filter((item) => item.id.includes(productVariantId));
+        variantData = variantData.filter((item) => !item.id.includes(productVariantId));
         break;
       default:
         console.warn("Unknown action:", action);
@@ -313,7 +314,7 @@ class WishlistApi {
 }
 
 class WishlistManager {
-  #appUrl = "https://consciousness-continues-classical-consisting.trycloudflare.com";
+  #appUrl = "https://ja-roses-quizzes-llc.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   wishlistData = { wishlisted: [], variantData: [] };
