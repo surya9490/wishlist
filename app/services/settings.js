@@ -1,3 +1,4 @@
+import { defaultConfig } from "../config/settings";
 
 
 export async function getAppInstallationId(admin) {
@@ -17,45 +18,43 @@ export async function getAppInstallationId(admin) {
   }
 }
 
-export async function getMetafield(admin, id) {
-  try {
-    const response = await admin.graphql(
-      `#graphql
-        query GetMetafields($ownerId: ID!, $namespace: String!, $key: String!) {
-          metafields(first: 10, ownerId: $ownerId, namespace: $namespace, key: $key) {
-            edges {
-              node {
-                key
-                namespace
-                value
-                createdAt
-                updatedAt
-              }
+
+export const getMetaFieldData = async (admin, metafield) => {
+  const response = await admin.graphql(
+    `{
+      currentAppInstallation {
+        metafields(first: 10,namespace: "${metafield.namespace}") {
+          edges {
+            node {
+              namespace
+              key
+              value
             }
           }
-        }`,
-      {
-        variables: {
-          ownerId: id,  // The same ID you used when creating the metafield
-          namespace: "data",  // The namespace used in your metafield
-          key: "app_settings",  // The key used in your metafield
-        },
+        }
       }
-    );
+    }`
+  );
 
-    const data = await response.json();
-
-    console.log('Fetched Metafields:', data);
-
-    return data;
-  } catch (error) {
-    console.error("Error handling metafield:", error);
-    throw new Response("Failed to create or fetch metafield", { status: 500 });
+  const resData = await response.json();
+  if (
+    !resData?.data?.currentAppInstallation?.metafields?.edges ||
+    resData.data.currentAppInstallation.metafields.edges.length === 0
+  ) {
+    return null; // No metafields found in the given namespace
   }
-}
+
+  // Find metafield by key
+  const metafieldData = resData.data.currentAppInstallation.metafields.edges.find(
+    (edge) => edge.node.key === metafield.key
+  );
+
+  return metafieldData || null; // Return null if the key doesn't match
+};
 
 
-export async function createMetafield(admin, id) {
+
+export async function createMetafield(admin, id, config) {
   try {
 
     const response = await admin.graphql(
@@ -81,17 +80,18 @@ export async function createMetafield(admin, id) {
           "metafields": [
             {
               "key": "app_settings",
-              "namespace": "data",
+              "namespace": "wishlist",
               "ownerId": id,
-              "type": "multi_line_text_field",
-              "value": "95% Cotton\n5% Spandex"
+              "type": "json",
+              "value": JSON.stringify(config)
             }
           ]
         },
       },
     );
 
-    const data = await response.json();
+    const resData = await response.json();
+    const data = resData?.data?.metafieldsSet.metafields
 
     console.log(data)
     return (data)
