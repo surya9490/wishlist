@@ -40,11 +40,28 @@
   justify-content: center;
   align-items: center;
   cursor: pointer;
+  position: relative;
 }
 [wishlist-header-icon] svg {
   width: 20px;
   height: 20px;
   fill: currentColor;
+}
+
+[wishlist-header-icon] [wishlist-count] {
+  position: absolute;
+  top: 8px;
+  right: -6px;
+  background: rgb(96, 94, 92);
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 [wishlist-header-icon] svg path {
@@ -113,7 +130,7 @@
   margin-bottom: 20px;
   font-size: 16px;
 }
-[wishlist-dialog] ,
+[wishlist-dialog],
 [wishlist-dialog] [type="search"]:is(:focus-visible, :focus) {
   outline: none;
   box-shadow: none;
