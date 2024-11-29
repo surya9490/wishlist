@@ -20,3 +20,9 @@ export const defaultConfig = {
     }
   }
 }
+
+export const defaultMetaFields = {
+  "namespace": "wishlist",
+  "key": "app_settings",
+  "type": "json",
+}

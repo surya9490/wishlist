@@ -1,5 +1,3 @@
-import { defaultConfig } from "../config/settings";
-
 
 export async function getAppInstallationId(admin) {
   try {
@@ -54,7 +52,7 @@ export const getMetaFieldData = async (admin, metafield) => {
 
 
 
-export async function createMetafield(admin, id, config) {
+export async function createMetafield(admin, id, config, defaultMetaFields) {
   try {
 
     const response = await admin.graphql(
@@ -79,10 +77,10 @@ export async function createMetafield(admin, id, config) {
         variables: {
           "metafields": [
             {
-              "key": "app_settings",
-              "namespace": "wishlist",
+              "key": defaultMetaFields.key,
+              "namespace": defaultMetaFields.namespace,
               "ownerId": id,
-              "type": "json",
+              "type": defaultMetaFields.type,
               "value": JSON.stringify(config)
             }
           ]
