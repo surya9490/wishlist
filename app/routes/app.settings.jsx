@@ -4,9 +4,8 @@ import { createMetafield, getAppInstallationId, getMetaFieldData } from "../serv
 import { json } from "@remix-run/node";
 import { defaultConfig, defaultMetaFields } from "../config/settings";
 import { useLoaderData } from "@remix-run/react";
-import { BlockStack, Card, Tabs } from "@shopify/polaris";
+import { BlockStack, Box, Button, Card, Checkbox, Divider, Grid, InlineGrid, Page, Tabs, Text } from "@shopify/polaris";
 import { useCallback, useState } from "react";
-
 
 
 export async function loader({ request }) {
@@ -22,52 +21,187 @@ export async function loader({ request }) {
   return json({ data });
 }
 
-
+// Define Tabs
 const tabs = [
   {
-    id: 'all-customers-1',
-    content: 'All',
-    accessibilityLabel: 'All customers',
-    panelID: 'all-customers-content-1',
+    id: "general",
+    content: "General",
+    panelID: "general-content",
+    settingsComponent: GeneralSettings,
   },
   {
-    id: 'accepts-marketing-1',
-    content: 'Accepts marketing',
-    panelID: 'accepts-marketing-content-1',
+    id: "button",
+    content: "Button",
+    panelID: "button-content",
+    settingsComponent: ButtonSettings,
   },
   {
-    id: 'repeat-customers-1',
-    content: 'Repeat customers',
-    panelID: 'repeat-customers-content-1',
+    id: "notification",
+    content: "Notification",
+    panelID: "notification-content",
+    settingsComponent: NotificationSettings,
   },
   {
-    id: 'prospects-1',
-    content: 'Prospects',
-    panelID: 'prospects-content-1',
+    id: "language",
+    content: "Language",
+    panelID: "language-content",
+    settingsComponent: LanguageSettings,
   },
 ];
-function TabsSection() {
-  const [selected, setSelected] = useState(tabs[0]);
-  const handleTabChange = useCallback(
-    (selectedTabIndex) => setSelected(selectedTabIndex),
-    [],
-  );
-  return (
 
-    <BlockStack gap="500">
-      <Card>
-        <Tabs tabs={tabs} selected={selected} onSelect={handleTabChange}>
-          
-        </Tabs>
-      </Card>
+function TabsSection({ config, onUpdateConfig }) {
+  const [selectedTabIndex, setSelectedTabIndex] = useState(0);
+
+  const handleTabChange = useCallback(
+    (selectedTabIndex) => setSelectedTabIndex(selectedTabIndex),
+    []
+  );
+
+  // Dynamically render the settings component for the selected tab
+  const CurrentSettings = tabs[selectedTabIndex].settingsComponent;
+
+  return (
+    <BlockStack gap="5">
+      {/* Tabs Component */}
+      <Tabs
+        tabs={tabs}
+        selected={selectedTabIndex}
+        onSelect={handleTabChange}
+      />
+
+      {/* Content Rendering */}
+      <BlockStack>
+        <CurrentSettings config={config} onUpdateConfig={onUpdateConfig} />
+      </BlockStack>
     </BlockStack>
-  )
+  );
 }
 
+// Main Component
 export default function Settings() {
   const settingsData = useLoaderData();
-  console.log(settingsData)
+  const [config, setConfig] = useState(settingsData.data);
+
+  // Handle Save Action
+  const handleSave = () => {
+    createMetafield()
+  };
+
+  // Update Configuration
+  const handleUpdateConfig = (updatedConfig) => {
+    setConfig((prev) => ({
+      ...prev,
+      ...updatedConfig,
+    }));
+  };
+
   return (
-    <TabsSection />
-  )
+    <>
+     <Button onClick={handleSave}>Save</Button>
+      <Page style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        <TabsSection config={config} onUpdateConfig={handleUpdateConfig} />
+        {/* Save Button */}
+       
+      </Page>
+    </>
+  );
+}
+
+// General Settings Component
+function GeneralSettings({ config, onUpdateConfig }) {
+  const handleChange = (newChecked, name) => {
+    if (name === "showWishlist") {
+      onUpdateConfig({ showWishlist: newChecked });
+    } else if (name === "variantDetection") {
+      onUpdateConfig({
+        options: {
+          ...config.options,
+          variantChange: newChecked,
+        },
+      });
+    }
+  };
+
+  return (
+    <BlockStack gap="500">
+      <BlockStack gap={{ xs: "800", sm: "400" }}>
+        <InlineGrid columns={{ xs: "1fr", md: "2fr 5fr" }} gap="400">
+          <Box
+            as="section"
+            paddingInlineStart={{ xs: 400, sm: 0 }}
+            paddingInlineEnd={{ xs: 400, sm: 0 }}
+          >
+            <BlockStack gap="400">
+              <Text variant="bodyMd">Show Wishlist</Text>
+            </BlockStack>
+          </Box>
+          <Card roundedAbove="sm">
+            <Grid alignItems="center" justifyContent="space-between">
+              <Grid.Cell columnSpan={{ sm: 5, lg: 10 }}>
+                <Text variant="bodyMd">Show Wishlist</Text>
+              </Grid.Cell>
+              <Grid.Cell columnSpan={{ sm: 1, lg: 2 }}>
+                <Checkbox
+                  name="showWishlist"
+                  checked={config.showWishlist || false}
+                  onChange={(newChecked) =>
+                    handleChange(newChecked, "showWishlist")
+                  }
+                />
+              </Grid.Cell>
+            </Grid>
+          </Card>
+        </InlineGrid>
+        <Divider />
+        <InlineGrid columns={{ xs: "1fr", md: "2fr 5fr" }} gap="400">
+          <Box
+            as="section"
+            paddingInlineStart={{ xs: 400, sm: 0 }}
+            paddingInlineEnd={{ xs: 400, sm: 0 }}
+          >
+            <BlockStack gap="400">
+              <Text as="h3" variant="headingMd">
+                General Settings
+              </Text>
+              <Text as="p" variant="bodyMd">
+                Configure the storefront UI settings to start and explore the Wishlist benefits for your store.
+              </Text>
+            </BlockStack>
+          </Box>
+          <Card roundedAbove="sm">
+            <Grid alignItems="center" justifyContent="space-between">
+              <Grid.Cell columnSpan={{ xs: 10, sm: 5, md: 5, lg: 10, xl: 10 }}>
+                <Text variant="bodyMd">Variant Change Detection</Text>
+                <Text variant="bodyMd">
+                  Enable now to add products to the wishlist based on specific variants.
+                </Text>
+              </Grid.Cell>
+              <Grid.Cell columnSpan={{ xs: 2, sm: 1, md: 1, lg: 2, xl: 2 }}>
+                <Checkbox
+                  name="variantDetection"
+                  checked={config.options?.variantChange || false}
+                  onChange={(newChecked) =>
+                    handleChange(newChecked, "variantDetection")
+                  }
+                />
+              </Grid.Cell>
+            </Grid>
+          </Card>
+        </InlineGrid>
+      </BlockStack>
+    </BlockStack>
+  );
+}
+
+// Other Settings Components
+function ButtonSettings() {
+  return <div>Button Settings</div>;
+}
+
+function NotificationSettings() {
+  return <div>Notification Settings</div>;
+}
+
+function LanguageSettings() {
+  return <div>Language Settings</div>;
 }

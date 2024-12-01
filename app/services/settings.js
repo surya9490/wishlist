@@ -1,4 +1,4 @@
-import { defaultConfig } from "../config/settings";
+
 
 
 export async function getAppInstallationId(admin) {
@@ -56,7 +56,6 @@ export const getMetaFieldData = async (admin, metafield) => {
 
 export async function createMetafield(admin, id, config) {
   try {
-
     const response = await admin.graphql(
       `#graphql
       mutation MetafieldsSet($metafields: [MetafieldsSetInput!]!) {

@@ -1,4 +1,5 @@
 export const defaultConfig = {
+  "wishlist": true,
   "options": {
     "toaster": true,
     "guestWishList": true,

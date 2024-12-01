@@ -184,7 +184,6 @@ class WishlistApi {
 
   async loadWishListData() {
     try {
-      debugger
       const data = await this.getWishlistedData();
       const syncedData = await this.syncUserDataWithGuest(data);
       this.wishlistManager.handleUpdatedData({ data: syncedData, action: "load", response: syncedData?.count });
@@ -247,7 +246,6 @@ class WishlistApi {
   }
 
   async handleWishlistAction({ action, productVariantId, ...params }) {
-    debugger
     try {
       if (!this.customerId && action === "remove") {
         this.updateWishlistData(action, productVariantId, params.productHandle, { wishlisted: [], variantData: [] });
@@ -261,7 +259,6 @@ class WishlistApi {
   }
 
   updateWishlistData(action, productVariantId, productHandle, response) {
-    debugger
     let { wishlisted = [], variantData = [] } = this.wishlistData;
     switch (action) {
       case "add":
@@ -314,7 +311,7 @@ class WishlistApi {
 }
 
 class WishlistManager {
-  #appUrl = "https://ja-roses-quizzes-llc.trycloudflare.com";
+  #appUrl = "https://tel-germany-fibre-lines.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   wishlistData = { wishlisted: [], variantData: [] };
@@ -389,7 +386,6 @@ class WishlistManager {
   }
 
   handleUpdatedData({ data, action, response }) {
-    console.log(this.wishlistData)
     this.wishlistData = data;
     console.log(this.wishlistData)
     this.#updateUI();

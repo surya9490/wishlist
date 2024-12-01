@@ -147,6 +147,17 @@
   position: relative;
 }
 
+.card-wrapper {
+  position: relative;
+}
+
+.card-wrapper .wishlist {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 9;
+}
+
 @media only screen and (min-width: 768px) {
   [wishlist-dialog] .product-container {
     display: grid;
