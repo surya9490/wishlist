@@ -3,7 +3,7 @@ import { authenticate } from "../shopify.server";
 import { createMetafield, getAppInstallationId, getMetaFieldData } from "../services/settings";
 import { json } from "@remix-run/node";
 import { defaultConfig, defaultMetaFields } from "../config/settings";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useSubmit } from "@remix-run/react";
 import { BlockStack, Box, Button, Card, Checkbox, Divider, Grid, InlineGrid, Page, Tabs, Text } from "@shopify/polaris";
 import { useCallback, useState } from "react";
 
@@ -20,6 +20,17 @@ export async function loader({ request }) {
   const data = JSON.parse(response[0].value) || {};
   return json({ data });
 }
+
+export async function action({ request }) {
+  const { admin } = await authenticate.admin(request);
+  const formData = await request.formData();
+  const config = JSON.parse(formData.get("config"));
+  const appId = await getAppInstallationId(admin);
+  const response = await createMetafield(admin, appId, config) || {};
+  const data = response[0].value
+  return json({ data });
+}
+
 
 // Define Tabs
 const tabs = [
@@ -77,14 +88,19 @@ function TabsSection({ config, onUpdateConfig }) {
   );
 }
 
+
 // Main Component
 export default function Settings() {
   const settingsData = useLoaderData();
   const [config, setConfig] = useState(settingsData.data);
 
   // Handle Save Action
+  const submit = useSubmit();
   const handleSave = () => {
-    createMetafield()
+    const formData = new FormData();
+    formData.append("config", JSON.stringify(config));
+
+    submit(formData, { method: "post" });
   };
 
   // Update Configuration
@@ -97,11 +113,11 @@ export default function Settings() {
 
   return (
     <>
-     <Button onClick={handleSave}>Save</Button>
+      <Button onClick={handleSave}>Save</Button>
       <Page style={{ maxWidth: "1200px", margin: "0 auto" }}>
         <TabsSection config={config} onUpdateConfig={handleUpdateConfig} />
         {/* Save Button */}
-       
+
       </Page>
     </>
   );
