@@ -1,7 +1,20 @@
+
+<script>
+  {%  assign  config = app.metafields.wishlist.app_settings  %}
+  debugger
+  const wishlistConfig = {{config}}
+  document.addEventListener("DOMContentLoaded", async () => {
+    const wishlistManager = new WishlistManager(wishlistConfig);
+    await wishlistManager.wishlistApi.init(); 
+    wishlistManager.init(); 
+  });
+</script>
+
 <script src="{{ "wishlist.js" | asset_url }}" defer></script>
 {{ 'wishlist.css' | asset_url | stylesheet_tag }}
 
 <div wishlist-container>
+  
   <div class="wishlist-toaster" wishlist-toaster>
     <div>
       <div class="wishlist-content">

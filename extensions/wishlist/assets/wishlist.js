@@ -282,7 +282,7 @@ class WishlistApi {
       this.setGuestData(this.wishlistData);
     }
 
-    pubsub.publish("wishlist:updated", { data:this.wishlistData, action, response, count: response.count });
+    pubsub.publish("wishlist:updated", { data: this.wishlistData, action, response, count: response.count });
 
   }
 
@@ -311,7 +311,7 @@ class WishlistApi {
 }
 
 class WishlistManager {
-  #appUrl = "https://tel-germany-fibre-lines.trycloudflare.com";
+  #appUrl = "https://spirit-chain-stocks-literary.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   wishlistData = { wishlisted: [], variantData: [] };
