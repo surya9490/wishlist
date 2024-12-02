@@ -1,9 +1,9 @@
 
 <script>
   {%  assign  config = app.metafields.wishlist.app_settings  %}
-  debugger
   const wishlistConfig = {{config}}
   document.addEventListener("DOMContentLoaded", async () => {
+    debugger
     const wishlistManager = new WishlistManager(wishlistConfig);
     await wishlistManager.wishlistApi.init(); 
     wishlistManager.init(); 

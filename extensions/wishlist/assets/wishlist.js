@@ -311,7 +311,7 @@ class WishlistApi {
 }
 
 class WishlistManager {
-  #appUrl = "https://spirit-chain-stocks-literary.trycloudflare.com";
+  #appUrl = "https://time-carrier-expenditures-stats.trycloudflare.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   wishlistData = { wishlisted: [], variantData: [] };
@@ -323,8 +323,8 @@ class WishlistManager {
   #timer;
 
   constructor(config = {}) {
-    this.#toasterConfig = config.toasterConfig || WishlistManager.defaultToasterConfig;
-    this.#selectors = config.selectors || WishlistManager.defaultSelectors;
+    this.#toasterConfig = config.defaultToasterConfig || WishlistManager.defaultToasterConfig;
+    this.#selectors = config.defaultSelectors || WishlistManager.defaultSelectors;
     this.#options = { ...WishlistManager.options, ...config.options };
   }
 
@@ -457,9 +457,4 @@ class WishlistManager {
   }
 }
 
-// Initialize WishlistManager
-document.addEventListener("DOMContentLoaded", async () => {
-  const wishlistManager = new WishlistManager();
-  await wishlistManager.wishlistApi.init(); // Explicitly initialize WishlistApi
-  wishlistManager.init(); // Initialize WishlistManager separately
-});
+
