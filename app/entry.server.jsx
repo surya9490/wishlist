@@ -4,6 +4,7 @@ import { RemixServer } from "@remix-run/react";
 import { createReadableStreamFromReadable } from "@remix-run/node";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
+import { cors } from "remix-utils/cors";
 
 const ABORT_DELAY = 5000;
 
@@ -51,3 +52,10 @@ export default async function handleRequest(
     setTimeout(abort, ABORT_DELAY);
   });
 }
+
+export let handleDataRequest = async (
+	response,
+	{ request },
+) => {
+	return await cors(request, response);
+};

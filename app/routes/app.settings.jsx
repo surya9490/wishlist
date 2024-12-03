@@ -2,7 +2,7 @@
 import { authenticate } from "../shopify.server";
 import { createMetafield, getAppInstallationId, getMetaFieldData } from "../services/settings";
 import { json } from "@remix-run/node";
-import { defaultConfig } from "../config/settings";
+import { defaultConfig, tabs } from "../config/settings";
 import { useLoaderData, useSubmit } from "@remix-run/react";
 import { BlockStack, Box, Button, Card, Checkbox, Divider, Grid, InlineGrid, Page, Text, TextField } from "@shopify/polaris";
 import {  useState } from "react";
