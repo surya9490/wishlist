@@ -311,7 +311,7 @@ class WishlistApi {
 }
 
 class WishlistManager {
-  #appUrl = "https://time-carrier-expenditures-stats.trycloudflare.com";
+  #appUrl = "https://wishlist-9pl8.onrender.com";
   #customerId = window.wishlistData?.customerEmail || null;
   #shop = window.wishlistData?.shop || null;
   wishlistData = { wishlisted: [], variantData: [] };
