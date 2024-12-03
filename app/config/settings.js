@@ -32,6 +32,7 @@ export const tabs = [
       {
         id: "showWishlist",
         label: "Show Wishlist",
+        input: "checkbox",
         type: "checkbox",
         name: "showWishlist",
         default: true,
@@ -47,6 +48,7 @@ export const tabs = [
       {
         id: "variantDetection",
         label: "Variant Detection",
+        input: "checkbox",
         type: "checkbox",
         name: "variantDetection",
         default: true,
@@ -55,6 +57,7 @@ export const tabs = [
       {
         id: "guestWishList",
         label: "Guest Wish List",
+        input: "checkbox",
         type: "checkbox",
         name: "guestWishList",
         default: true,
@@ -63,6 +66,7 @@ export const tabs = [
       {
         id: "toaster",
         label: "Toaster",
+        input: "checkbox",
         type: "checkbox",
         name: "toaster",
         default: true,
@@ -78,7 +82,8 @@ export const tabs = [
       {
         id: "add",
         label: "Add to Wishlist",
-        type: "input",
+        input: "input",
+        type: "text",
         name: "add",
         default: "Product added to wishlist",
         target: "defaultToasterConfig.messages.add",
@@ -86,7 +91,8 @@ export const tabs = [
       {
         id: "remove",
         label: "Remove from Wishlist",
-        type: "input",
+        input: "input",
+        type: "text",
         name: "remove",
         default: "Product removed from wishlist",
         target: "defaultToasterConfig.messages.remove",
@@ -94,7 +100,8 @@ export const tabs = [
       {
         id: "fetch",
         label: "Fetch from Wishlist",
-        type: "input",
+        input: "input",
+        type: "text",
         name: "fetch",
         default: "Product fetched from wishlist",
         target: "defaultToasterConfig.messages.fetch",
@@ -102,10 +109,20 @@ export const tabs = [
       {
         id: "error",
         label: "Error",
-        type: "input",
+        input: "input",
+        type: "text",
         name: "error",
         default: "Failed to update wishlist",
         target: "defaultToasterConfig.messages.error",
+      },
+      {
+        id: "timer",
+        label: "Timer",
+        input: "input",
+        type: "number",
+        name: "timer",
+        default: 5000,
+        target: "defaultToasterConfig.timer",
       },
     ],
   },

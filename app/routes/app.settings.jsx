@@ -3,9 +3,9 @@ import { authenticate } from "../shopify.server";
 import { createMetafield, getAppInstallationId, getMetaFieldData } from "../services/settings";
 import { json } from "@remix-run/node";
 import { defaultConfig, tabs } from "../config/settings";
-import { useLoaderData, useSubmit } from "@remix-run/react";
-import { BlockStack, Box, Button, Card, Checkbox, Divider, Grid, InlineGrid, Page, Text, TextField } from "@shopify/polaris";
-import {  useState } from "react";
+import { useLoaderData, useNavigate, useNavigation, useSubmit } from "@remix-run/react";
+import { BlockStack, Box, Button, Card, Checkbox, Divider, FullscreenBar, Grid, InlineGrid, Page, Text, TextField } from "@shopify/polaris";
+import { useCallback, useEffect, useState } from "react";
 
 
 export async function loader({ request }) {
@@ -31,14 +31,19 @@ export async function action({ request }) {
   return json({ data });
 }
 
-
-
-
 export default function Settings() {
   const settingsData = useLoaderData();
   const [config, setConfig] = useState(settingsData.data || defaultConfig);
+  const [isModified, setIsModified] = useState(false);
 
   const submit = useSubmit();
+  const navigation = useNavigation()
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const isEqual = JSON.stringify(config) === JSON.stringify(settingsData.data);
+    setIsModified(!isEqual);
+  }, [config, settingsData.data]);
 
   // Handle Save Action
   const handleSave = () => {
@@ -51,6 +56,10 @@ export default function Settings() {
   const handleUpdateConfig = (updatedConfig) => {
     setConfig(updatedConfig);
   };
+
+  const handleActionClick = useCallback(() => {
+    navigate(-1)
+  }, []);
 
   const renderSettings = (settings) =>
 
@@ -65,35 +74,56 @@ export default function Settings() {
       };
 
       return (
-        <Card roundedAbove="sm" key={setting.id}>
-          <Grid alignItems="center" justifyContent="space-between">
-            <Grid.Cell columnSpan={{ sm: 8 }}>
-              <Text variant="bodyMd">{setting.label}</Text>
-            </Grid.Cell>
-            <Grid.Cell columnSpan={{ sm: 4 }}>
-              {setting.type === "checkbox" && (
-                <Checkbox
-                  name={setting.name}
-                  checked={currentValue || false}
-                  onChange={(checked) => handleInputChange(checked)}
-                />
-              )}
-              {setting.type === "input" && (
-                <TextField
-                  name={setting.name}
-                  value={currentValue || ""}
-                  onChange={(value) => handleInputChange(value)}
-                />
-              )}
-            </Grid.Cell>
-          </Grid>
-        </Card>
+
+        <Grid alignItems="center" justifyContent="space-between" key={setting.id} gap={{ xs: "0", sm: "0" }}>
+          <Grid.Cell columnSpan={setting.input === "checkbox" ? { xs: 5 } : { xs: 6 }}>
+            <Text variant="bodyMd">{setting.label}</Text>
+          </Grid.Cell>
+          <Grid.Cell columnSpan={setting.input === "checkbox" ? { xs: 1 } : { xs: 6 }}>
+            {setting.input === "checkbox" && (
+              <Checkbox
+                name={setting.name}
+                checked={currentValue || false}
+                onChange={(checked) => handleInputChange(checked)}
+              />
+            )}
+            {setting.input === "input" && (
+              <TextField
+                name={setting.name}
+                value={currentValue || ""}
+                type={setting.type}
+                onChange={(value) => handleInputChange(value)}
+              />
+            )}
+          </Grid.Cell>
+        </Grid>
       );
     });
 
   return (
     <>
-      <Button onClick={handleSave}>Save</Button>
+      <FullscreenBar  onAction={handleActionClick}>
+        <div
+          style={{
+            display: 'flex',
+            flexGrow: 1,
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingLeft: '1rem',
+            paddingRight: '1rem',
+          }}
+        >
+          <div style={{ marginLeft: '1rem', flexGrow: 1 }}>
+            <Text variant="headingLg" as="p">
+              Wishlist settings
+            </Text>
+          </div>
+          <Button variant="primary" onClick={handleSave} loading={navigation.state === "submitting"} disabled={!isModified}>
+            Save
+          </Button>
+        </div>
+      </FullscreenBar>
+
       <Page style={{ maxWidth: "1200px", margin: "0 auto" }}>
         <BlockStack gap="200">
           {tabs.map((section) => (
@@ -115,11 +145,11 @@ export default function Settings() {
                     )}
                   </BlockStack>
                 </Box>
-
-                <BlockStack gap="400">
-                  {renderSettings(section.settings)}
-                </BlockStack>
-
+                <Card roundedAbove="sm" >
+                  <BlockStack gap="400">
+                    {renderSettings(section.settings)}
+                  </BlockStack>
+                </Card>
               </InlineGrid>
               <Divider />
 
