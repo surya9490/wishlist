@@ -387,7 +387,6 @@ class WishlistManager {
 
   handleUpdatedData({ data, action, response }) {
     this.wishlistData = data;
-    console.log(this.wishlistData)
     this.#updateUI();
     if (action === 'add' || action === 'remove') {
       this.#triggerEvent(response?.method, response?.variantData[0]);

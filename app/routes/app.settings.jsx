@@ -34,16 +34,14 @@ export async function action({ request }) {
 export default function Settings() {
   const settingsData = useLoaderData();
   const [config, setConfig] = useState(settingsData.data || defaultConfig);
-  const [isModified, setIsModified] = useState(false);
 
   const submit = useSubmit();
   const navigation = useNavigation()
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const isEqual = JSON.stringify(config) === JSON.stringify(settingsData.data);
-    setIsModified(!isEqual);
-  }, [config, settingsData.data]);
+
+
+
 
   // Handle Save Action
   const handleSave = () => {
@@ -70,6 +68,7 @@ export default function Settings() {
 
       const handleInputChange = (value) => {
         const updatedConfig = updateNestedConfig(config, setting.target, value);
+        debugger
         handleUpdateConfig(updatedConfig);
       };
 
@@ -102,7 +101,7 @@ export default function Settings() {
 
   return (
     <>
-      <FullscreenBar  onAction={handleActionClick}>
+      <FullscreenBar onAction={handleActionClick}>
         <div
           style={{
             display: 'flex',
@@ -118,7 +117,7 @@ export default function Settings() {
               Wishlist settings
             </Text>
           </div>
-          <Button variant="primary" onClick={handleSave} loading={navigation.state === "submitting"} disabled={!isModified}>
+          <Button variant="primary" onClick={handleSave} loading={navigation.state === "submitting"}>
             Save
           </Button>
         </div>
@@ -173,9 +172,13 @@ function updateNestedConfig(config, target, value) {
 
   keys.forEach((key, index) => {
     if (index === keys.length - 1) {
-      pointer[key] = value; // Update the final key
+      // Update the final key
+      pointer[key] = value;
     } else {
-      pointer[key] = pointer[key] || {}; // Ensure intermediate keys exist
+      // Ensure intermediate keys exist and are objects
+      if (typeof pointer[key] !== "object" || pointer[key] === null) {
+        pointer[key] = {}; // Reset to an empty object if it's not an object
+      }
       pointer = pointer[key];
     }
   });

@@ -8,11 +8,9 @@ export default function SaveBar() {
 }
 
 document.getElementById('save-button').addEventListener('click', () => {
-  console.log('Saving');
   document.getElementById('my-save-bar').hide();
 });
 
 document.getElementById('discard-button').addEventListener('click', () => {
-  console.log('Discarding');
   document.getElementById('my-save-bar').hide();
 });

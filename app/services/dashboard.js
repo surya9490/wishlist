@@ -167,9 +167,6 @@ export async function fetchTopWishlistedItems({ admin }) {
     });
 
     const productHandles = topWishlistedItems.map((item) => item.productHandle);
-
-    console.log(productHandles,'----------------')
-
     const productDetails = [];
 
     for (const handle of productHandles) {
