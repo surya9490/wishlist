@@ -146,9 +146,10 @@ export async function fetchDashboardData({ shop }) {
 
 
 
-export async function fetchTopWishlistedItems({ admin }) {
+export async function fetchTopWishlistedItems({ admin,shop }) {
   try {
 
+    console.log(admin.shop)
     // Step 2: Fetch wishlist counts grouped by productHandle using Prisma
     const topWishlistedItems = await prisma.wishlist.groupBy({
       by: ['productHandle'],
@@ -156,7 +157,7 @@ export async function fetchTopWishlistedItems({ admin }) {
         productHandle: true,
       },
       where: {
-        shop: admin.shop, // Use the shop from the authenticated admin
+        shop: shop, // Use the shop from the authenticated admin
       },
       orderBy: {
         _count: {

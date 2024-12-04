@@ -10,7 +10,7 @@ export async function loader({ request }) {
   const { shop } = session;
   const [dashboardData, productDetails] = await Promise.all([
     fetchDashboardData({ shop }),
-    fetchTopWishlistedItems({  admin }),
+    fetchTopWishlistedItems({ admin, shop }),
   ]);
   return json({ ...dashboardData, productDetails, shop });
 }
