@@ -4,8 +4,8 @@ import { createMetafield, getAppInstallationId, getMetaFieldData } from "../serv
 import { json } from "@remix-run/node";
 import { defaultConfig, tabs } from "../config/settings";
 import { useLoaderData, useNavigate, useNavigation, useSubmit } from "@remix-run/react";
-import { BlockStack, Box, Button, Card, Checkbox, Divider, FullscreenBar, Grid, InlineGrid, Page, Text, TextField } from "@shopify/polaris";
-import { useCallback, useEffect, useState } from "react";
+import { BlockStack, Box, Button, Card, Checkbox, Divider, FullscreenBar, Grid, InlineGrid, Page, Spinner, Text, TextField } from "@shopify/polaris";
+import { useCallback, useState } from "react";
 
 
 export async function loader({ request }) {
@@ -34,21 +34,21 @@ export async function action({ request }) {
 export default function Settings() {
   const settingsData = useLoaderData();
   const [config, setConfig] = useState(settingsData.data || defaultConfig);
-
   const submit = useSubmit();
   const navigation = useNavigation()
   const navigate = useNavigate();
-
-
-
-
 
   // Handle Save Action
   const handleSave = () => {
     const formData = new FormData();
     formData.append("config", JSON.stringify(config));
     submit(formData, { method: "post" });
+
   };
+
+ 
+
+
 
   // Update Configuration
   const handleUpdateConfig = (updatedConfig) => {
@@ -58,6 +58,15 @@ export default function Settings() {
   const handleActionClick = useCallback(() => {
     navigate(-1)
   }, []);
+
+  if (navigation.state === 'loading') {
+    debugger
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Spinner accessibilityLabel="Loading..." size="large" />
+    </div>
+    );
+  }
 
   const renderSettings = (settings) =>
 
@@ -71,6 +80,7 @@ export default function Settings() {
         debugger
         handleUpdateConfig(updatedConfig);
       };
+      
 
       return (
 

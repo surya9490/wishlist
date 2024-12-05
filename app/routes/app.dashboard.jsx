@@ -2,8 +2,8 @@
 import { json } from "@remix-run/node";
 import { fetchDashboardData, fetchTopWishlistedItems } from "../services/dashboard";
 import { authenticate } from "../shopify.server";
-import { BlockStack, Box, Card, Divider, Grid, Page, ResourceItem, ResourceList, Text } from '@shopify/polaris';
-import { useLoaderData } from "@remix-run/react";
+import { BlockStack, Box, Card, Divider, Grid, Page, ResourceItem, ResourceList, Spinner, Text } from '@shopify/polaris';
+import { useLoaderData, useNavigation } from "@remix-run/react";
 
 export async function loader({ request }) {
   const { session, admin } = await authenticate.admin(request);
@@ -17,6 +17,7 @@ export async function loader({ request }) {
 
 
 export default function Dashboard() {
+  const navigation = useNavigation();
   const { shop, pageViews, wishlistedItems, customersCount, productHandlesCount, productDetails } = useLoaderData();
   const data = [
     {
@@ -37,6 +38,15 @@ export default function Dashboard() {
     }
 
   ]
+
+  if (navigation.state === 'loading') {
+    debugger
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Spinner accessibilityLabel="Loading..." size="large" />
+    </div>
+    );
+  }
 
 
   return (

@@ -23,8 +23,8 @@ export default function App() {
         <Link to="/app" rel="home">
           Home
         </Link>
-        <Link to="/app/dashboard">Dashboard</Link>
-        <Link to="/app/settings">Settings</Link>
+        <Link to="/app/dashboard" prefetch="intent">Dashboard</Link>
+        <Link to="/app/settings" prefetch="intent">Settings</Link>
       </NavMenu>
       <Outlet />
     </AppProvider>
