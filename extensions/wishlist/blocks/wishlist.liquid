@@ -1,15 +1,14 @@
 {% assign config = app.metafields.wishlist.app_settings %}
-
-{% if config.showWishlist == true %}
   <script>
     const wishlistConfig = {{config}}
     document.addEventListener("DOMContentLoaded", async () => {
+      if (wishlistConfig.showWishlist === false) return;
       const wishlistManager = new WishlistManager(wishlistConfig);
       await wishlistManager.wishlistApi.init();
       wishlistManager.init();
     });
   </script>
-{% endif %}
+
 
 {{ 'wishlist.css' | asset_url | stylesheet_tag }}
 <script src="{{ "wishlist.js" | asset_url }}" defer></script>
