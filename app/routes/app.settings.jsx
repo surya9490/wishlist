@@ -46,10 +46,6 @@ export default function Settings() {
 
   };
 
- 
-
-
-
   // Update Configuration
   const handleUpdateConfig = (updatedConfig) => {
     setConfig(updatedConfig);
